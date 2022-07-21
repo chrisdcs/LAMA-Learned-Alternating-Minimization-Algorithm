@@ -293,108 +293,7 @@ class ResNet(torch.nn.Module):
             # resnet architecture
             x = self.fcs[i](x)
         return x
-#%% U-Net
-class DoubleConv(nn.Module):
-    def __init__(self, in_c, out_c):
-        super(DoubleConv, self).__init__()
-        self.conv = nn.Sequential(
-                nn.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=3, padding=1),
-                nn.BatchNorm2d(out_c), 
-                nn.ReLU(inplace=True),
-                nn.Conv2d(in_channels=out_c, out_channels=out_c, kernel_size=3, padding=1),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU(inplace=True)
-            )
-        
-    def forward(self, x):
-        return self.conv(x)
-    
-    
-class Down(nn.Module):
-    def __init__(self, in_c):
-        super(Down, self).__init__()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv = DoubleConv(in_c, in_c * 2)
-        
-        
-    def forward(self, x):
-        out = self.conv(self.pool(x))
-        return out
-        
-class Up(nn.Module):
-    def __init__(self, in_c):
-        super(Up, self).__init__()
-        self.up_conv =  nn.ConvTranspose2d(in_channels=in_c, out_channels=in_c//2, 
-                                           kernel_size=2, stride=2)
-        self.conv = DoubleConv(in_c, in_c//2)
-        
-    def forward(self, x1, x2):
-        x1 = self.up_conv(x1)
-        # input is CHW
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
-
-        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
-                        diffY // 2, diffY - diffY // 2])
-        x = torch.cat([x2, x1], dim=1)
-        return self.conv(x)
-    
-class OutConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(OutConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-
-    def forward(self, x):
-        return self.conv(x)
-
-class UNet(nn.Module):
-    def __init__(self, n_channels):
-        super(UNet, self).__init__()
-        self.n_channels = n_channels
-
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(64)
-        self.down2 = Down(128)
-        
-        self.up1 = Up(256)
-        self.up2 = Up(128)
-        self.outc = OutConv(64, 1)
-
-    def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x = self.up1(x3, x2)
-        x = self.up2(x, x1)
-        out = self.outc(x)
-        return out
-    
 #%% LDA
-# class gradient_weighted(Function):
-#     @staticmethod
-#     def forward(self, input_data, alpha, weights, proj, options):
-#         diff = ctlib.projection(input_data, options) - proj
-#         temp = weights * diff
-#         intervening_res = ctlib.projection_t(temp, options)
-#         self.save_for_backward(intervening_res, alpha, diff, weights, options)
-#         out = input_data - alpha * intervening_res
-#         return out
-
-#     @staticmethod
-#     def backward(self, grad_output):
-#         intervening_res, alpha, diff, weights, options = self.saved_tensors
-#         temp = ctlib.projection(grad_output, options)
-#         temp = weights * temp
-#         temp = ctlib.projection_t(temp,options)
-#         grad_input = grad_output - alpha * temp
-        
-#         temp = intervening_res * grad_output
-#         grad_alpha = - temp.sum().view(-1)
-        
-        
-        
-#         return grad_input, grad_alpha, ,None, None
-
 class prj_fun(Function):
     @staticmethod
     def forward(self, input_data, weight, proj, options):
@@ -429,7 +328,19 @@ class projection(Function):
         grad_input = ctlib.projection_t(grad_output, options)
         return grad_input, None
     
-    
+class projection_t(Function):
+    @staticmethod
+    def forward(self, input_data, options):
+        # y = Ax   x = A^T y
+        out = ctlib.projection_t(input_data, options)
+        self.save_for_backward(options, input_data)
+        return out
+
+    @staticmethod
+    def backward(self, grad_output):
+        options, input_data = self.saved_tensors
+        grad_input = ctlib.projection(grad_output, options)
+        return grad_input, None
 
 class LDA_weighted(torch.nn.Module):
     def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta):
@@ -450,7 +361,7 @@ class LDA_weighted(torch.nn.Module):
         self.alphas = nn.Parameter(alpha * torch.ones(LayerNo))
         self.betas = nn.Parameter(beta * torch.ones(LayerNo),requires_grad=False)
         
-        weights = torch.tensor([100, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1]) / 100.
+        weights = torch.tensor([50, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1]) / 50.
         weight_matrix = torch.ones((512,512))
         for i in range(8):
             for j in range(64):
@@ -465,8 +376,6 @@ class LDA_weighted(torch.nn.Module):
         self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         self.conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         
-        self.projection = projection()
-        self.grad_step = prj_fun()
         self.sparse_view_num = sparse_view_num
         ratio = 1024 // (sparse_view_num * 8)
         
@@ -585,9 +494,9 @@ class LDA_weighted(torch.nn.Module):
         
         # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
         # here we obtain z (in LDA paper from eq. 12)
-        z = ctlib.projection(x, self.options_sparse_view) - proj
+        z = projection.apply(x, self.options_sparse_view) - proj
         z = z * self.weight_matrix.repeat(z.shape[0],1,1,1)
-        z = x - alpha * ctlib.projection_t(z, self.options_sparse_view)
+        z = x - alpha * projection_t.apply(z, self.options_sparse_view)
         
         # gradient of r, the smoothed regularizer
         grad_r_z = self.grad_r(z)
@@ -613,8 +522,8 @@ class LDA_weighted(torch.nn.Module):
         """ update soft threshold, step 7-8 algorithm 1 """
         norm_grad_phi_x_next = \
                         torch.norm(
-                                    (ctlib.projection_t(
-                                        ctlib.projection(
+                                    (projection_t.apply(
+                                        projection.apply(
                                             x_next, self.options_sparse_view)-proj, 
                                         self.options_sparse_view)
                                      + self.grad_r(x_next)).reshape(-1,65536),
@@ -818,8 +727,8 @@ class LDA(torch.nn.Module):
         """ update soft threshold, step 7-8 algorithm 1 """
         norm_grad_phi_x_next = \
                         torch.norm(
-                                    (ctlib.projection_t(
-                                        ctlib.projection(
+                                    (projection_t.apply(
+                                        projection.apply(
                                             x_next, self.options_sparse_view)-proj, 
                                         self.options_sparse_view)
                                      + self.grad_r(x_next)).reshape(-1,65536),
