@@ -553,14 +553,14 @@ class LDA_weighted(torch.nn.Module):
         
         return x_next, proj
     
-    def forward(self, x, proj, dummy=None):
+    def forward(self, x, proj, mask):
         
         # x is initial given by [Phi f0*, Phi^2 f0*, .., Phi^r-1 f0*]
         # proj is the projection data input, i.e. f0*
         x_list = []
         proj_list = []
         for phase in range(self.PhaseNo):
-            x, proj = self.phase(x, proj, phase)
+            x, proj = self.phase(x, proj, phase, mask)
             x_list.append(x)
             proj_list.append(proj)
             
