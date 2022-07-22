@@ -358,10 +358,11 @@ class LDA_weighted(torch.nn.Module):
         self.PhaseNo = PhaseNo
         self.init = True
         
-        self.alphas = nn.Parameter(alpha * torch.ones(LayerNo))
-        self.betas = nn.Parameter(beta * torch.ones(LayerNo),requires_grad=False)
+        self.alphas = nn.Parameter(torch.tensor([alpha] * LayerNo))
+        self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
         
-        weights = torch.tensor([50, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1]) / 50.
+        #weights = torch.tensor([20, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1]) / 20.
+        weights = torch.tensor([1, 1, 1, 1, 1, 1, 1, 1])
         weight_matrix = torch.ones((512,512))
         for i in range(8):
             for j in range(64):
@@ -477,7 +478,7 @@ class LDA_weighted(torch.nn.Module):
         
         r = self.R(x)
         f = 1/2 * torch.sum((torch.square(
-            self.projection.apply(x, self.options_sparse_view) - proj)).reshape(-1,262144), 
+            projection.apply(x, self.options_sparse_view) - proj)).reshape(-1,262144), 
                             dim = 1, keepdim=True)
         
         

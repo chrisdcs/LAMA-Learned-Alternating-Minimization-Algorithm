@@ -31,8 +31,8 @@ parser.add_argument('--layer_num', type=int, default=15, help='phase number of L
 parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
 parser.add_argument('--group_num', type=int, default=1, help='group number for training')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size for loading data')
-parser.add_argument('--alpha', type=float, default=0.001, help='alpha parameter')
-parser.add_argument('--beta', type=float, default=1e-5, help='beta parameter')
+parser.add_argument('--alpha', type=float, default=1e-12, help='alpha parameter')
+parser.add_argument('--beta', type=float, default=1e-12, help='beta parameter')
 parser.add_argument('--gpu_list', type=str, default='0', help='gpu index')
 parser.add_argument('--root_dir', type=str, default='mayo_data_low_dose_256', help='root directory')
 parser.add_argument('--file_dir', type=str, default='input_64views', help='input files directory')
@@ -93,10 +93,10 @@ if start_epoch > 0:
         power = start_phase - np.ceil((300-start_epoch)/100)
     else:
         power = start_phase - np.ceil((end_epoch-start_epoch)/100)
-    learning_rate = learning_rate * 0.8**power
+    learning_rate = learning_rate * 0.9**power
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 100, gamma=0.8)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 100, gamma=0.9)
 
 print_flag = 1   # print parameter number
 
@@ -153,7 +153,7 @@ for PhaseNo in range(start_phase, end_phase+1, 2):
             rec_loss = torch.mean(torch.pow(x_output-label_data,2))
             ssim_loss = 1-ssim(x_output,label_data,data_range=1)
             
-            loss_all = rec_loss + ssim_loss
+            loss_all = rec_loss + 0.01 * ssim_loss
             loss_list.append(loss_all.item())
             # Zero gradients, perform a backward pass, and update the weights.
             optimizer.zero_grad()
