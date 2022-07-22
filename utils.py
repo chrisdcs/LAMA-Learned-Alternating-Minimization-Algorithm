@@ -294,6 +294,20 @@ class ResNet(torch.nn.Module):
             x = self.fcs[i](x)
         return x
 #%% LDA
+class SBlock(nn.Module):
+    def __init__(self):
+        super(SBlock, self).__init__()
+        self.conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 5, 5)))
+        self.conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 5, 5)))
+        self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(1, 48, 5, 5)))
+        
+    def forward(self, x):
+        x = F.relu(F.conv2d(x, self.conv1, padding=2))
+        x = F.relu(F.conv2d(x, self.conv2, padding=2))
+        x = F.conv2d(x, self.conv3, padding=2)
+        
+        return x
+
 class prj_fun(Function):
     @staticmethod
     def forward(self, input_data, weight, proj, options):
@@ -361,14 +375,15 @@ class LDA_weighted(torch.nn.Module):
         self.alphas = nn.Parameter(torch.tensor([alpha] * LayerNo))
         self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
         
-        #weights = torch.tensor([20, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1]) / 20.
-        weights = torch.tensor([1, 1, 1, 1, 1, 1, 1, 1])
-        weight_matrix = torch.ones((512,512))
-        for i in range(8):
-            for j in range(64):
-                weight_matrix[i+j*8,:] *= weights[i]
+        self.SNet_list = nn.ModuleList([SBlock() for i in range(LayerNo)])
         
-        self.weight_matrix = nn.Parameter(weight_matrix[None,:,:],requires_grad=False)
+        # weights = torch.tensor([20, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1])
+        # weight_matrix = torch.ones((512,512))
+        # for i in range(8):
+        #     for j in range(64):
+        #         weight_matrix[i+j*8,:] *= weights[i]
+        
+        # self.weight_matrix = nn.Parameter(weight_matrix[None,:,:],requires_grad=False)
         
         # size: out channels  x in channels x filter size x filter size
         # every block shares weights
@@ -417,7 +432,7 @@ class LDA_weighted(torch.nn.Module):
         # first obtain forward passs to get features g_i, i = 1, 2, ..., n_c
         # This is the feature extraction map, we can change it to other networks
         # x_input: n x 1 x 33 x 33
-        x_input = x#.view(-1, 1, 33, 33)
+        x_input = x
         soft_thr = self.soft_thr * self.gamma
         
         # shape from input to output: batch size x height x width x n channels
@@ -445,14 +460,14 @@ class LDA_weighted(torch.nn.Module):
         g_r *= self.activation_der(x1)
         g_r = F.conv_transpose2d(g_r, self.conv1, padding = 1) 
         
-        return g_r#.reshape(-1, 1089)
+        return g_r
     
     def R(self, x):
         """ implementation of eq. (9) in paper: the smoothed regularizer  """
         
         # first obtain forward passs to get features g_i, i = 1, 2, ..., n_c
-        # x_input: n x 1 x 33 x 33
-        x_input = x#.view(-1, 1, 33, 33)
+        # x_input: n x 1 x h x w
+        x_input = x#.view(-1, 1, h, w)
         soft_thr = self.soft_thr * self.gamma
         
         # shape from input to output: batch size x height x width x n channels
@@ -484,7 +499,7 @@ class LDA_weighted(torch.nn.Module):
         
         return f + r
     
-    def phase(self, x, proj, phase):
+    def phase(self, x, proj, phase, mask):
         """
         x is the reconstruction output from last phase
         proj is Phi True_x, the sampled ground truth
@@ -496,7 +511,10 @@ class LDA_weighted(torch.nn.Module):
         # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
         # here we obtain z (in LDA paper from eq. 12)
         z = projection.apply(x, self.options_sparse_view) - proj
-        z = z * self.weight_matrix.repeat(z.shape[0],1,1,1)
+        res = self.SNet_list[phase](z)
+        z = z * mask + res * (1-mask)
+        
+        # z = z * self.weight_matrix.repeat(z.shape[0],1,1,1)
         z = x - alpha * projection_t.apply(z, self.options_sparse_view)
         
         # gradient of r, the smoothed regularizer
@@ -574,7 +592,6 @@ class LDA(torch.nn.Module):
         self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         self.conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         
-        self.projection = projection()
         self.grad_step = prj_fun()
         self.sparse_view_num = sparse_view_num
         
@@ -679,7 +696,7 @@ class LDA(torch.nn.Module):
         
         r = self.R(x)
         f = 1/2 * torch.sum((torch.square(
-            self.projection.apply(x, self.options_sparse_view) - proj)).reshape(-1,262144), 
+            projection.apply(x, self.options_sparse_view) - proj)).reshape(-1,262144), 
                             dim = 1, keepdim=True)
         
         return f + r
@@ -696,13 +713,6 @@ class LDA(torch.nn.Module):
         # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
         # here we obtain z (in LDA paper from eq. 12)
         z = self.grad_step.apply(x, alpha, proj, self.options_sparse_view)
-        # z = z / z.max()
-        # z = z.clip(0,1)
-        
-        
-        # print('z',z)
-        # z = x - alpha * torch.mm(x, PhiTPhi)
-        # z = z + alpha * PhiTb
         
         # gradient of r, the smoothed regularizer
         grad_r_z = self.grad_r(z)
