@@ -356,6 +356,193 @@ class projection_t(Function):
         grad_input = ctlib.projection(grad_output, options)
         return grad_input, None
 
+class Dual_Domain_LDA(torch.nn.Module):
+    def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta, mu, eta, nu):
+        super(LDA_weighted, self).__init__()
+        
+        # soft threshold
+        self.soft_thr = nn.Parameter(torch.Tensor([0.002]))
+        # sparcity bactracking
+        self.gamma = 1.0
+        # a parameter for backtracking
+        self.sigma = 10**6
+        # parameter for activation function
+        self.delta = 0.001
+        # set phase number
+        self.PhaseNo = PhaseNo
+        
+        self.alphas = nn.Parameter(torch.tensor([alpha] * LayerNo))
+        self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
+        self.mus = nn.Parameter(torch.tensor([mu] * LayerNo))
+        self.etas = nn.Parameter(torch.tensor([eta] * LayerNo))
+        self.nus = nn.Parameter(torch.tensor([nu] * LayerNo))
+        
+        # size: out channels  x in channels x filter size x filter size
+        # every block shares weights
+        self.I_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 1, 3, 3)))
+        self.I_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
+        self.I_conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
+        self.I_conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
+        
+        self.S_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 5, 5)))
+        self.S_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 5, 5)))
+        
+        # This part handles the gradient of sinogram update
+        self.index = nn.Parameter(torch.tensor([i*8 for i in range(64)],dtype=torch.int32),
+                                  requires_grad=False)
+        P = torch.zeros([sparse_view_num,512])
+        for i in range(sparse_view_num):
+            P[i,i*8] = 1
+        PT = P.T
+        PT = PT.reshape(1,1,512,sparse_view_num)
+        self.PT = nn.Parameter(PT, requires_grad=False)
+        
+        
+        self.sparse_view_num = sparse_view_num
+        ratio = 1024 // (sparse_view_num * 8)
+        
+        options = torch.tensor([sparse_view_num * 8, 512, 256, 256, 0.006641,
+                                                 0.0072, 0, 0.006134 * ratio, 2.5, 2.5, 0, 0])
+        self.options_sparse_view = nn.Parameter(options, requires_grad=False)
+    
+    def set_PhaseNo(self, PhaseNo):
+        # used when adding more phases
+        self.PhaseNo = PhaseNo
+        
+    def activation(self, x):
+        """ activation function from eq. (33) in paper """
+        
+        # index for x < -delta and x > delta
+        index = torch.sign(F.relu(torch.abs(x)-self.delta))
+        output = index * F.relu(x)
+        # add parts when -delta <= x <= delta
+        output += (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        return output
+    
+    def activation_der(self, x):
+        """ derivative of activation function from eq. (33) in paper """
+        
+        # index for x < -delta and x > delta
+        index = torch.sign(F.relu(torch.abs(x)-self.delta))
+        output = index * torch.sign(F.relu(x))
+        # add parts when -delta <= x <= delta
+        output += (1-index) * (1/(2 * self.delta) * x + 1/2)
+        return output
+    
+    def grad_q(self, x):
+        x_input = x
+        soft_thr = self.soft_thr * self.gamma
+        
+        # shape from input to output: batch size x height x width x n channels
+        x1 = F.conv2d(x_input, self.S_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 48, h, w)
+        g = F.conv2d(self.activation(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
+        n_channel = g.shape[1]
+        
+        # compute norm over channel and compute g_factor
+        norm_g = torch.norm(g, dim = 1)
+        I1 = torch.sign(F.relu(norm_g - soft_thr))[:,None,:,:]
+        I1 = torch.tile(I1, [1, n_channel, 1, 1])
+        I0 = 1 - I1
+        
+        g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
+        
+        g_q = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1)
+        g_q *= self.activation_der(x1)
+        g_q = F.conv_transpose2d(g_q, self.S_conv1, padding = 1)
+        
+        return g_q
+    
+    def grad_r(self, x):
+        """ implementation of eq. (10) in paper  """
+        
+        # first obtain forward passs to get features g_i, i = 1, 2, ..., n_c
+        # This is the feature extraction map, we can change it to other networks
+        # x_input: n x 1 x 33 x 33
+        x_input = x
+        soft_thr = self.soft_thr * self.gamma
+        
+        # shape from input to output: batch size x height x width x n channels
+        x1 = F.conv2d(x_input, self.I_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 32, h, w)
+        x2 = F.conv2d(self.activation(x1), self.I_conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        x3 = F.conv2d(self.activation(x2), self.I_conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        g = F.conv2d(self.activation(x3), self.I_conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
+        n_channel = g.shape[1]
+        
+        # compute norm over channel and compute g_factor
+        norm_g = torch.norm(g, dim = 1)
+        I1 = torch.sign(F.relu(norm_g - soft_thr))[:,None,:,:]
+        I1 = torch.tile(I1, [1, n_channel, 1, 1])
+        I0 = 1 - I1
+        
+        g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
+        
+        # implementation for eq. (9): multiply grad_g to g_factor from the left
+        # result derived from chain rule and that gradient of convolution is convolution transpose
+        g_r = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1)
+        g_r *= self.activation_der(x3)
+        g_r = F.conv_transpose2d(g_r, self.I_conv3, padding = 1)
+        g_r *= self.activation_der(x2)
+        g_r = F.conv_transpose2d(g_r, self.I_conv2, padding = 1)
+        g_r *= self.activation_der(x1)
+        g_r = F.conv_transpose2d(g_r, self.I_conv1, padding = 1) 
+        
+        return g_r
+    
+    def phase(self, x, f, proj, phase):
+        """
+        x is the reconstruction output from last phase
+        proj is Phi True_x, the sampled ground truth
+        
+        """
+        alpha = torch.abs(self.alphas[phase])
+        beta = torch.abs(self.betas[phase])
+        mu = torch.abs(self.mus[phase])
+        eta = torch.abs(self.etas[phase])
+        nu = torch.abs(self.nus[phase])
+        
+        # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
+        # here we obtain z (in LDA paper from eq. 12)
+        residual_I = projection.apply(x, self.options_sparse_view) - proj
+        b = x - alpha * projection_t.apply(residual_I, self.options_sparse_view)
+        u = b - beta * self.grad_r(b)
+        
+        # now update z
+        s = projection.apply(u, self.options_sparse_view)
+        residual_S = torch.index_select(proj,2,self.index)-f
+        c = proj - mu * (proj - s) - eta * self.PT @ residual_S
+        
+        proj_next = c - nu * self.grad_q(c)
+        x_next = u
+        
+        """ update soft threshold, step 7-8 algorithm 1 """
+        norm_grad_phi_x_next = \
+                        torch.norm(
+                                    (projection_t.apply(
+                                        projection.apply(
+                                            x_next, self.options_sparse_view)-proj, 
+                                        self.options_sparse_view)
+                                     + self.grad_r(x_next)).reshape(-1,65536),
+                                    dim = -1, keepdim= True
+                                    )
+        sig_gam_eps = self.sigma * self.gamma * self.soft_thr 
+        self.gamma *= 0.9 if (torch.mean(norm_grad_phi_x_next) < sig_gam_eps) else 1.0
+        
+        return x_next, proj_next
+    
+    def forward(self, x, proj):
+        
+        # x is initial given by [Phi f0*, Phi^2 f0*, .., Phi^r-1 f0*]
+        # proj is the projection data input, i.e. f0*
+        x_list = []
+        proj_list = []
+        for phase in range(self.PhaseNo):
+            x, proj = self.phase(x, proj, phase)
+            x_list.append(x)
+            proj_list.append(proj)
+            
+        return x_list, proj_list    
+    
+
 class LDA_weighted(torch.nn.Module):
     def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta):
         super(LDA_weighted, self).__init__()
@@ -376,14 +563,6 @@ class LDA_weighted(torch.nn.Module):
         self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
         
         self.SNet_list = nn.ModuleList([SBlock() for i in range(LayerNo)])
-        
-        # weights = torch.tensor([20, 1, 1/3, 1/5, 1/5, 1/5, 1/3, 1])
-        # weight_matrix = torch.ones((512,512))
-        # for i in range(8):
-        #     for j in range(64):
-        #         weight_matrix[i+j*8,:] *= weights[i]
-        
-        # self.weight_matrix = nn.Parameter(weight_matrix[None,:,:],requires_grad=False)
         
         # size: out channels  x in channels x filter size x filter size
         # every block shares weights
