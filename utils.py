@@ -358,7 +358,7 @@ class projection_t(Function):
 
 class Dual_Domain_LDA(torch.nn.Module):
     def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta, mu, eta, nu):
-        super(LDA_weighted, self).__init__()
+        super(Dual_Domain_LDA, self).__init__()
         
         # soft threshold
         self.soft_thr = nn.Parameter(torch.Tensor([0.002]))
