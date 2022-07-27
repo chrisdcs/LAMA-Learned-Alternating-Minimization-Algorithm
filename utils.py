@@ -535,8 +535,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         # proj is the projection data input, i.e. f0*
         x_list = []
         proj_list = []
+        f = torch.index_select(proj, 2, self.index)
         for phase in range(self.PhaseNo):
-            x, proj = self.phase(x, proj, phase)
+            x, proj = self.phase(x, f, proj, phase)
             x_list.append(x)
             proj_list.append(proj)
             
