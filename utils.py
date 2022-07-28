@@ -507,9 +507,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         u = b - beta * self.grad_r(b)
         
         # now update z
-        s = projection.apply(u, self.options_sparse_view)
+        # s = projection.apply(u, self.options_sparse_view)
         residual_S = torch.index_select(proj,2,self.index)-f
-        c = proj - mu * (proj - s) - eta * self.PT @ residual_S
+        # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
+        c = proj - mu * residual_I - eta * self.PT @ residual_S
         
         proj_next = c - nu * self.grad_q(c)
         x_next = u
@@ -541,7 +542,7 @@ class Dual_Domain_LDA(torch.nn.Module):
             x_list.append(x)
             proj_list.append(proj)
             
-        return x_list, proj_list    
+        return x_list, proj_list
     
 
 class LDA_weighted(torch.nn.Module):
