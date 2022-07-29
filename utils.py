@@ -500,19 +500,22 @@ class Dual_Domain_LDA(torch.nn.Module):
         eta = torch.abs(self.etas[phase])
         nu = torch.abs(self.nus[phase])
         
-        # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
-        # here we obtain z (in LDA paper from eq. 12)
-        residual_I = projection.apply(x, self.options_sparse_view) - proj
-        b = x - alpha * projection_t.apply(residual_I, self.options_sparse_view)
-        u = b - beta * self.grad_r(b)
-        
         # now update z
         # s = projection.apply(u, self.options_sparse_view)
+        sinogram = projection.apply(x, self.options_sparse_view)
+        residual_I = proj - sinogram 
         residual_S = torch.index_select(proj,2,self.index)-f
         # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
-        c = proj + mu * residual_I - eta * self.PT @ residual_S
+        c = proj - mu * residual_I - eta * self.PT @ residual_S
         
         proj_next = c - nu * self.grad_q(c)
+        
+        # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
+        # here we obtain z (in LDA paper from eq. 12)
+        residual = sinogram - proj_next
+        b = x - alpha * projection_t.apply(residual, self.options_sparse_view)
+        u = b - beta * self.grad_r(b)
+        
         x_next = u
         
         """ update soft threshold, step 7-8 algorithm 1 """
