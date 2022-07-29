@@ -145,7 +145,7 @@ for PhaseNo in range(start_phase, end_phase+1, 2):
             
             x_list, prj_list = model(input_data,prj_data)
             x_output = x_list[-1].clip(0,1) * mask
-            prj_output = prj_list[-1]
+            prj_output = prj_list[-1].clip(0)
             prj_label = projection.apply(label_data, model.module.options_sparse_view)
             
             # compute and print loss
