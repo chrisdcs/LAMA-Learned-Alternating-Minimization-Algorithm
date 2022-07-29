@@ -153,7 +153,7 @@ for PhaseNo in range(start_phase, end_phase+1, 2):
             ssim_loss = 0
             
             rec_loss = torch.mean(torch.pow(x_output-label_data,2))
-            sinogram_loss = torch.mean(torch.pow(prj_output-prj_label))
+            sinogram_loss = torch.mean(torch.pow(prj_output-prj_label,2))
             ssim_loss = 1-ssim(x_output,label_data,data_range=1)
             
             loss_all = rec_loss + sinogram_loss
