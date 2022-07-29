@@ -510,7 +510,8 @@ class Dual_Domain_LDA(torch.nn.Module):
         # s = projection.apply(u, self.options_sparse_view)
         residual_S = torch.index_select(proj,2,self.index)-f
         # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
-        c = proj + mu * residual_I - eta * self.PT @ residual_S
+        # c = proj - mu * residual_I - eta * self.PT @ residual_S
+        c = proj - eta * self.PT @ residual_S
         
         proj_next = c - nu * self.grad_q(c)
         x_next = u
