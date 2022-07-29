@@ -145,15 +145,18 @@ for PhaseNo in range(start_phase, end_phase+1, 2):
             
             x_list, prj_list = model(input_data,prj_data)
             x_output = x_list[-1].clip(0,1) * mask
+            prj_output = prj_list[-1].clip(0)
+            prj_label = projection.apply(label_data, model.module.options_sparse_view)
             
             # compute and print loss
             rec_loss = 0
             ssim_loss = 0
             
             rec_loss = torch.mean(torch.pow(x_output-label_data,2))
+            sinogram_loss = torch.mean(torch.pow(prj_output-prj_label))
             ssim_loss = 1-ssim(x_output,label_data,data_range=1)
             
-            loss_all = rec_loss + 0.01 * ssim_loss
+            loss_all = rec_loss + sinogram_loss
             loss_list.append(loss_all.item())
             # Zero gradients, perform a backward pass, and update the weights.
             optimizer.zero_grad()
