@@ -501,7 +501,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         """
         alpha = torch.abs(self.alphas[phase])
         beta = torch.abs(self.betas[phase])
-        mu = torch.abs(self.mus[phase])
+        mu = self.mus[phase]
         eta = torch.abs(self.etas[phase])
         nu = torch.abs(self.nus[phase])
         
