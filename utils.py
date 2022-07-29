@@ -397,11 +397,6 @@ class Dual_Domain_LDA(torch.nn.Module):
         PT = PT.reshape(1,1,512,sparse_view_num)
         self.PT = nn.Parameter(PT, requires_grad=False)
         
-        mask = torch.zeros((1,1,sparse_view_num*8,sparse_view_num*8))
-        for i in range(sparse_view_num):
-            mask[:,:,i*8,:] = 1
-        self.mask = nn.Parameter(mask,requires_grad=False)
-        
         
         self.sparse_view_num = sparse_view_num
         ratio = 1024 // (sparse_view_num * 8)
@@ -501,7 +496,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         """
         alpha = torch.abs(self.alphas[phase])
         beta = torch.abs(self.betas[phase])
-        mu = self.mus[phase]
+        mu = torch.abs(self.mus[phase])
         eta = torch.abs(self.etas[phase])
         nu = torch.abs(self.nus[phase])
         
@@ -513,10 +508,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # now update z
         # s = projection.apply(u, self.options_sparse_view)
-        # residual_S = torch.index_select(proj,2,self.index)-f
-        residual_S = proj-f
+        residual_S = torch.index_select(proj,2,self.index)-f
         # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
-        c = proj - mu * residual_I - eta * self.mask * residual_S
+        c = proj + mu * residual_I - eta * self.PT @ residual_S
         
         proj_next = c - nu * self.grad_q(c)
         x_next = u
@@ -542,8 +536,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         # proj is the projection data input, i.e. f0*
         x_list = []
         proj_list = []
-        # f = torch.index_select(proj, 2, self.index)
-        f = proj
+        f = torch.index_select(proj, 2, self.index)
         for phase in range(self.PhaseNo):
             x, proj = self.phase(x, f, proj, phase)
             x_list.append(x)
