@@ -508,7 +508,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
         c = proj - mu * residual_I - eta * self.PT @ residual_S
         
-        proj_next = c - nu * self.grad_q(c)
+        proj_next = F.relu(c - nu * self.grad_q(c))
         
         # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
         # here we obtain z (in LDA paper from eq. 12)
