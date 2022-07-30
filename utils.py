@@ -505,7 +505,6 @@ class Dual_Domain_LDA(torch.nn.Module):
         sinogram = projection.apply(x, self.options_sparse_view)
         residual_I = proj - sinogram 
         residual_S = torch.index_select(proj,2,self.index)-f
-        # c = proj - mu * (proj - s) - eta * self.PT @ residual_S
         c = proj - mu * residual_I - eta * self.PT @ residual_S
         
         proj_next = c - nu * self.grad_q(c)
@@ -519,6 +518,8 @@ class Dual_Domain_LDA(torch.nn.Module):
         x_next = u
         
         """ update soft threshold, step 7-8 algorithm 1 """
+        # to reduce computation, comment this section
+        """
         norm_grad_phi_x_next = \
                         torch.norm(
                                     (projection_t.apply(
@@ -530,6 +531,7 @@ class Dual_Domain_LDA(torch.nn.Module):
                                     )
         sig_gam_eps = self.sigma * self.gamma * self.soft_thr 
         self.gamma *= 0.9 if (torch.mean(norm_grad_phi_x_next) < sig_gam_eps) else 1.0
+        """
         
         return x_next, proj_next
     

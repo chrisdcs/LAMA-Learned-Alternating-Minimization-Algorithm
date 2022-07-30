@@ -24,7 +24,7 @@ from skimage.metrics import peak_signal_noise_ratio as psnr
 parser = ArgumentParser(description='Learnable Descent Algorithms (LDA)')
 
 parser.add_argument('--start_epoch', type=int, default=0, help='epoch number of start training')
-parser.add_argument('--end_epoch', type=int, default=200, help='epoch number of end training')
+parser.add_argument('--end_epoch', type=int, default=500, help='epoch number of end training')
 parser.add_argument('--start_phase', type=int, default=3, help='phase number of start training')
 parser.add_argument('--end_phase', type=int, default=15, help='phase number of end training')
 parser.add_argument('--layer_num', type=int, default=15, help='phase number of LDA-Net')
