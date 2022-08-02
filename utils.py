@@ -448,8 +448,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
         
-        g_q = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1)
-        g_q *= self.activation_der(x1)
+        g_q = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.activation_der(x1)
         g_q = F.conv_transpose2d(g_q, self.S_conv1, padding = 1)
         
         return g_q
@@ -480,13 +479,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # implementation for eq. (9): multiply grad_g to g_factor from the left
         # result derived from chain rule and that gradient of convolution is convolution transpose
-        g_r = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1)
-        g_r *= self.activation_der(x3)
-        g_r = F.conv_transpose2d(g_r, self.I_conv3, padding = 1)
-        g_r *= self.activation_der(x2)
-        g_r = F.conv_transpose2d(g_r, self.I_conv2, padding = 1)
-        g_r *= self.activation_der(x1)
-        g_r = F.conv_transpose2d(g_r, self.I_conv1, padding = 1) 
+        g_r = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.activation_der(x3)
+        g_r = F.conv_transpose2d(g_r, self.I_conv3, padding = 1) * self.activation_der(x2)
+        g_r = F.conv_transpose2d(g_r, self.I_conv2, padding = 1) * self.activation_der(x1)
+        g_r = F.conv_transpose2d(g_r, self.I_conv1, padding = 1)
         
         return g_r
     
@@ -598,9 +594,10 @@ class LDA_weighted(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * F.relu(x)
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        output = index * F.relu(x) + \
+            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        
         return output
     
     def activation_der(self, x):
@@ -608,9 +605,9 @@ class LDA_weighted(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * torch.sign(F.relu(x))
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(2 * self.delta) * x + 1/2)
+        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
+        
         return output
     
     def grad_r(self, x):
@@ -799,9 +796,10 @@ class LDA(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * F.relu(x)
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        output = index * F.relu(x) + \
+            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        
         return output
     
     def activation_der(self, x):
@@ -809,9 +807,9 @@ class LDA(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * torch.sign(F.relu(x))
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(2 * self.delta) * x + 1/2)
+        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
+        
         return output
     
     def grad_r(self, x):
