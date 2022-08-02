@@ -369,7 +369,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         # a parameter for backtracking
         self.sigma = 10**6
         # weight lambda for PMx error
-        self.lam = nn.Parameter(torch.tensor(lam))
+        
         # set phase number
         self.PhaseNo = PhaseNo
         
@@ -379,6 +379,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
         self.mus = nn.Parameter(torch.tensor([mu] * LayerNo))
         self.nus = nn.Parameter(torch.tensor([nu] * LayerNo))
+        self.lams = nn.Parameter(torch.tensor([lam] * LayerNo))
         
         # size: out channels  x in channels x filter size x filter size
         # every block shares weights
@@ -480,7 +481,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         beta = torch.abs(self.betas[phase])
         mu = torch.abs(self.mus[phase])
         nu = torch.abs(self.nus[phase])
-        lam = self.lam
+        lam = torch.abs(self.lams[phase])
         
         # now update z
         sinogram = projection.apply(x, self.options_sparse_view)
