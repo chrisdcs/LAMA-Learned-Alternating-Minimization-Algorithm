@@ -479,10 +479,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # implementation for eq. (9): multiply grad_g to g_factor from the left
         # result derived from chain rule and that gradient of convolution is convolution transpose
-        g_r = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.activation_der(x3)
-        g_r = F.conv_transpose2d(g_r, self.I_conv3, padding = 1) * self.activation_der(x2)
-        g_r = F.conv_transpose2d(g_r, self.I_conv2, padding = 1) * self.activation_der(x1)
-        g_r = F.conv_transpose2d(g_r, self.I_conv1, padding = 1)
+        g_r4 = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.activation_der(x3)
+        g_r3 = F.conv_transpose2d(g_r4, self.I_conv3, padding = 1) * self.activation_der(x2)
+        g_r2 = F.conv_transpose2d(g_r3, self.I_conv2, padding = 1) * self.activation_der(x1)
+        g_r = F.conv_transpose2d(g_r2, self.I_conv1, padding = 1)
         
         return g_r
     
