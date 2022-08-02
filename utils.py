@@ -510,8 +510,8 @@ class Dual_Domain_LDA(torch.nn.Module):
                                     dim = -1, keepdim= True
                                     )
         sig_gam_eps = self.sigma * self.gamma * self.soft_thr 
-        self.gamma *= 0.9 if (torch.mean(norm_grad_phi_x_next) < sig_gam_eps) else 1.0
-        
+        self.gamma = torch.where(torch.mean(norm_grad_phi_x_next) < sig_gam_eps, 
+                                 0.9 * self.gamma, self.gamma)
         
         return x_next, proj_next
     
