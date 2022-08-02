@@ -10,7 +10,6 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 from torch.autograd import Function
-from torchvision.models import vgg19
 
 import glob
 import ctlib
