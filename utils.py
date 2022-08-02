@@ -307,26 +307,6 @@ class SBlock(nn.Module):
         x = F.conv2d(x, self.conv3, padding=2)
         
         return x
-
-class prj_fun(Function):
-    @staticmethod
-    def forward(self, input_data, weight, proj, options):
-        temp = ctlib.projection(input_data, options) - proj
-        # print(temp)
-        intervening_res = ctlib.projection_t(temp, options)
-        self.save_for_backward(intervening_res, weight, options)
-        out = input_data - weight * intervening_res
-        return out
-
-    @staticmethod
-    def backward(self, grad_output):
-        intervening_res, weight, options = self.saved_tensors
-        temp = ctlib.projection(grad_output, options)
-        temp = ctlib.projection_t(temp, options)
-        grad_input = grad_output - weight * temp
-        temp = intervening_res * grad_output
-        grad_weight = - temp.sum().view(-1)
-        return grad_input, grad_weight, None, None
     
 class projection(Function):
     @staticmethod
@@ -355,6 +335,28 @@ class projection_t(Function):
         options, input_data = self.saved_tensors
         grad_input = ctlib.projection(grad_output, options)
         return grad_input, None
+
+class sigma_activation(nn.Module):
+    def __init__(self, ddelta):
+        super(sigma_activation, self).__init__()
+        self.relu = nn.ReLU(inplace=True)
+        self.ddelta = ddelta
+        self.coeff = 1.0 / (4.0 * self.ddelta)
+
+    def forward(self, x_i):
+        x_i_relu = self.relu(x_i)
+        x_square = torch.mul(x_i, x_i) * self.coeff
+        return torch.where(torch.abs(x_i) > self.ddelta, x_i_relu, x_square + 0.5*x_i + 0.25 * self.ddelta)
+    
+class sigma_derivative(nn.Module):
+    def __init__(self, ddelta):
+        super(sigma_derivative, self).__init__()
+        self.ddelta = ddelta
+        self.coeff2 = 1.0 / (2.0 * self.ddelta)
+
+    def forward(self, x_i):
+        x_i_relu_deri = torch.where(x_i > 0, torch.ones_like(x_i), torch.zeros_like(x_i))
+        return torch.where(torch.abs(x_i) > self.ddelta, x_i_relu_deri, self.coeff2 *x_i + 0.5)
 
 class Dual_Domain_LDA(torch.nn.Module):
     def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta, mu, eta, nu):
@@ -394,8 +396,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         for i in range(sparse_view_num):
             P[i,i*8] = 1
         PT = P.T
-        PT = PT.reshape(1,1,512,sparse_view_num)
-        self.PT = nn.Parameter(PT, requires_grad=False)
+        self.PT = nn.Parameter(PT.reshape(1,1,512,sparse_view_num), requires_grad=False)
         
         
         self.sparse_view_num = sparse_view_num
@@ -414,9 +415,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * F.relu(x)
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        output = index * F.relu(x) + \
+            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
+        
         return output
     
     def activation_der(self, x):
@@ -424,9 +426,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # index for x < -delta and x > delta
         index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        output = index * torch.sign(F.relu(x))
         # add parts when -delta <= x <= delta
-        output += (1-index) * (1/(2 * self.delta) * x + 1/2)
+        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
+        
         return output
     
     def grad_q(self, x):
@@ -501,7 +503,6 @@ class Dual_Domain_LDA(torch.nn.Module):
         nu = torch.abs(self.nus[phase])
         
         # now update z
-        # s = projection.apply(u, self.options_sparse_view)
         sinogram = projection.apply(x, self.options_sparse_view)
         residual_I = proj - sinogram 
         residual_S = torch.index_select(proj,2,self.index)-f
@@ -778,7 +779,6 @@ class LDA(torch.nn.Module):
         self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         self.conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         
-        self.grad_step = prj_fun()
         self.sparse_view_num = sparse_view_num
         
         ratio = 1024 // (sparse_view_num * 8)
@@ -898,7 +898,10 @@ class LDA(torch.nn.Module):
         
         # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
         # here we obtain z (in LDA paper from eq. 12)
-        z = self.grad_step.apply(x, alpha, proj, self.options_sparse_view)
+        residual = projection_t.apply(
+                                        projection.apply(x, self.options_sparse_view) - proj,
+                                        self.options_sparse_view)
+        z = x - alpha * residual
         
         # gradient of r, the smoothed regularizer
         grad_r_z = self.grad_r(z)
