@@ -389,6 +389,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         self.S_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 5, 5)))
         self.S_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 5, 5)))
         
+        self.act = sigma_activation(0.001)
+        self.act_der = sigma_derivative(0.001)
+        
+        
         # This part handles the gradient of sinogram update
         self.index = nn.Parameter(torch.tensor([i*8 for i in range(64)],dtype=torch.int32),
                                   requires_grad=False)
@@ -437,7 +441,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # shape from input to output: batch size x height x width x n channels
         x1 = F.conv2d(x_input, self.S_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 48, h, w)
-        g = F.conv2d(self.activation(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
+        g = F.conv2d(self.act(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
         n_channel = g.shape[1]
         
         # compute norm over channel and compute g_factor
@@ -448,8 +452,8 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
         
-        g_q = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.activation_der(x1)
-        g_q = F.conv_transpose2d(g_q, self.S_conv1, padding = 1)
+        g_q1 = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.act_der(x1)
+        g_q = F.conv_transpose2d(g_q1, self.S_conv1, padding = 1)
         
         return g_q
     
@@ -464,9 +468,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # shape from input to output: batch size x height x width x n channels
         x1 = F.conv2d(x_input, self.I_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 32, h, w)
-        x2 = F.conv2d(self.activation(x1), self.I_conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        x3 = F.conv2d(self.activation(x2), self.I_conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        g = F.conv2d(self.activation(x3), self.I_conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
+        x2 = F.conv2d(self.act(x1), self.I_conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        x3 = F.conv2d(self.act(x2), self.I_conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        g = F.conv2d(self.act(x3), self.I_conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
         n_channel = g.shape[1]
         
         # compute norm over channel and compute g_factor
@@ -479,10 +483,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # implementation for eq. (9): multiply grad_g to g_factor from the left
         # result derived from chain rule and that gradient of convolution is convolution transpose
-        g_r4 = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.activation_der(x3)
-        g_r3 = F.conv_transpose2d(g_r4, self.I_conv3, padding = 1) * self.activation_der(x2)
-        g_r2 = F.conv_transpose2d(g_r3, self.I_conv2, padding = 1) * self.activation_der(x1)
-        g_r = F.conv_transpose2d(g_r2, self.I_conv1, padding = 1)
+        g_r3 = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.act_der(x3)
+        g_r2 = F.conv_transpose2d(g_r3, self.I_conv3, padding = 1) * self.act_der(x2)
+        g_r1 = F.conv_transpose2d(g_r2, self.I_conv2, padding = 1) * self.act_der(x1)
+        g_r = F.conv_transpose2d(g_r1, self.I_conv1, padding = 1)
         
         return g_r
     
