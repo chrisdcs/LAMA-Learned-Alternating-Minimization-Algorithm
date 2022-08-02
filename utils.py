@@ -359,7 +359,7 @@ class sigma_derivative(nn.Module):
         return torch.where(torch.abs(x_i) > self.ddelta, x_i_relu_deri, self.coeff2 *x_i + 0.5)
 
 class Dual_Domain_LDA(torch.nn.Module):
-    def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta, mu, eta, nu):
+    def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta, mu, nu, lam):
         super(Dual_Domain_LDA, self).__init__()
         
         # soft threshold
@@ -368,15 +368,16 @@ class Dual_Domain_LDA(torch.nn.Module):
         self.gamma = 1.0
         # a parameter for backtracking
         self.sigma = 10**6
-        # parameter for activation function
-        self.delta = 0.001
+        # weight lambda for PMx error
+        self.lam = nn.Parameter(torch.tensor(lam))
         # set phase number
         self.PhaseNo = PhaseNo
+        
+        
         
         self.alphas = nn.Parameter(torch.tensor([alpha] * LayerNo))
         self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
         self.mus = nn.Parameter(torch.tensor([mu] * LayerNo))
-        self.etas = nn.Parameter(torch.tensor([eta] * LayerNo))
         self.nus = nn.Parameter(torch.tensor([nu] * LayerNo))
         
         # size: out channels  x in channels x filter size x filter size
@@ -389,8 +390,8 @@ class Dual_Domain_LDA(torch.nn.Module):
         self.S_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 5, 5)))
         self.S_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 5, 5)))
         
-        self.act = sigma_activation(0.001)
-        self.act_der = sigma_derivative(0.001)
+        self.activation = sigma_activation(0.001)
+        self.activation_der = sigma_derivative(0.001)
         
         
         # This part handles the gradient of sinogram update
@@ -413,27 +414,6 @@ class Dual_Domain_LDA(torch.nn.Module):
     def set_PhaseNo(self, PhaseNo):
         # used when adding more phases
         self.PhaseNo = PhaseNo
-        
-    def activation(self, x):
-        """ activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * F.relu(x) + \
-            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
-        
-        return output
-    
-    def activation_der(self, x):
-        """ derivative of activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
-        
-        return output
     
     def grad_q(self, x):
         x_input = x
@@ -441,7 +421,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # shape from input to output: batch size x height x width x n channels
         x1 = F.conv2d(x_input, self.S_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 48, h, w)
-        g = F.conv2d(self.act(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
+        g = F.conv2d(self.activation(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
         n_channel = g.shape[1]
         
         # compute norm over channel and compute g_factor
@@ -452,7 +432,7 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
         
-        g_q1 = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.act_der(x1)
+        g_q1 = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.activation_der(x1)
         g_q = F.conv_transpose2d(g_q1, self.S_conv1, padding = 1)
         
         return g_q
@@ -468,9 +448,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # shape from input to output: batch size x height x width x n channels
         x1 = F.conv2d(x_input, self.I_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 32, h, w)
-        x2 = F.conv2d(self.act(x1), self.I_conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        x3 = F.conv2d(self.act(x2), self.I_conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        g = F.conv2d(self.act(x3), self.I_conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
+        x2 = F.conv2d(self.activation(x1), self.I_conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        x3 = F.conv2d(self.activation(x2), self.I_conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
+        g = F.conv2d(self.activation(x3), self.I_conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
         n_channel = g.shape[1]
         
         # compute norm over channel and compute g_factor
@@ -483,9 +463,9 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         # implementation for eq. (9): multiply grad_g to g_factor from the left
         # result derived from chain rule and that gradient of convolution is convolution transpose
-        g_r3 = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.act_der(x3)
-        g_r2 = F.conv_transpose2d(g_r3, self.I_conv3, padding = 1) * self.act_der(x2)
-        g_r1 = F.conv_transpose2d(g_r2, self.I_conv2, padding = 1) * self.act_der(x1)
+        g_r3 = F.conv_transpose2d(g_factor, self.I_conv4, padding = 1) * self.activation_der(x3)
+        g_r2 = F.conv_transpose2d(g_r3, self.I_conv3, padding = 1) * self.activation_der(x2)
+        g_r1 = F.conv_transpose2d(g_r2, self.I_conv2, padding = 1) * self.activation_der(x1)
         g_r = F.conv_transpose2d(g_r1, self.I_conv1, padding = 1)
         
         return g_r
@@ -499,14 +479,14 @@ class Dual_Domain_LDA(torch.nn.Module):
         alpha = torch.abs(self.alphas[phase])
         beta = torch.abs(self.betas[phase])
         mu = torch.abs(self.mus[phase])
-        eta = torch.abs(self.etas[phase])
         nu = torch.abs(self.nus[phase])
+        lam = self.lam
         
         # now update z
         sinogram = projection.apply(x, self.options_sparse_view)
         residual_I = proj - sinogram 
         residual_S = torch.index_select(proj,2,self.index)-f
-        c = proj - mu * residual_I - eta * self.PT @ residual_S
+        c = proj - mu * (residual_I + lam * self.PT @ residual_S)
         
         proj_next = c - nu * self.grad_q(c)
         
@@ -561,8 +541,6 @@ class LDA_weighted(torch.nn.Module):
         self.gamma = 1.0
         # a parameter for backtracking
         self.sigma = 10**6
-        # parameter for activation function
-        self.delta = 0.001
         # set phase number
         self.PhaseNo = PhaseNo
         self.init = True
@@ -579,6 +557,9 @@ class LDA_weighted(torch.nn.Module):
         self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         self.conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         
+        self.activation = sigma_activation(0.001)
+        self.activation_der = sigma_derivative(0.001)
+        
         self.sparse_view_num = sparse_view_num
         ratio = 1024 // (sparse_view_num * 8)
         
@@ -592,27 +573,6 @@ class LDA_weighted(torch.nn.Module):
         
     def set_init(self, init):
         self.init = init
-        
-    def activation(self, x):
-        """ activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * F.relu(x) + \
-            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
-        
-        return output
-    
-    def activation_der(self, x):
-        """ derivative of activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
-        
-        return output
     
     def grad_r(self, x):
         """ implementation of eq. (10) in paper  """
@@ -764,14 +724,15 @@ class LDA(torch.nn.Module):
         self.gamma = 1.0
         # a parameter for backtracking
         self.sigma = 10**6
-        # parameter for activation function
-        self.delta = 0.001
         # set phase number
         self.PhaseNo = PhaseNo
         self.init = True
         
         self.alphas = nn.Parameter(alpha * torch.ones(LayerNo))
         self.betas = nn.Parameter(beta * torch.ones(LayerNo))
+        
+        self.activation = sigma_activation(0.001)
+        self.activation_der = sigma_derivative(0.001)
         
         # size: out channels  x in channels x filter size x filter size
         # every block shares weights
@@ -794,27 +755,6 @@ class LDA(torch.nn.Module):
         
     def set_init(self, init):
         self.init = init
-        
-    def activation(self, x):
-        """ activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * F.relu(x) + \
-            (1-index) * (1/(4*self.delta) * torch.square(x) + 1/2 * x + self.delta/4)
-        
-        return output
-    
-    def activation_der(self, x):
-        """ derivative of activation function from eq. (33) in paper """
-        
-        # index for x < -delta and x > delta
-        index = torch.sign(F.relu(torch.abs(x)-self.delta))
-        # add parts when -delta <= x <= delta
-        output = index * torch.sign(F.relu(x)) + (1-index) * (1/(2 * self.delta) * x + 1/2)
-        
-        return output
     
     def grad_r(self, x):
         """ implementation of eq. (10) in paper  """

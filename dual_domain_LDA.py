@@ -34,8 +34,8 @@ parser.add_argument('--batch_size', type=int, default=1, help='batch size for lo
 parser.add_argument('--alpha', type=float, default=1e-12, help='alpha parameter')
 parser.add_argument('--beta', type=float, default=1e-12, help='beta parameter')
 parser.add_argument('--mu', type=float, default=1e-12, help='beta parameter')
-parser.add_argument('--eta', type=float, default=1e-12, help='beta parameter')
 parser.add_argument('--nu', type=float, default=1e-12, help='beta parameter')
+parser.add_argument('--lam', type=float, default=10., help='beta parameter')
 parser.add_argument('--gpu_list', type=str, default='0', help='gpu index')
 parser.add_argument('--root_dir', type=str, default='mayo_data_low_dose_256', help='root directory')
 parser.add_argument('--file_dir', type=str, default='input_64views', help='input files directory')
@@ -58,8 +58,8 @@ layer_num = args.layer_num
 alpha = args.alpha
 beta = args.beta
 mu = args.mu
-eta = args.eta
 nu = args.nu
+lam = args.lam
 group_num = args.group_num
 gpu_list = args.gpu_list
 batch_size = args.batch_size
@@ -85,7 +85,7 @@ else:
     rand_loader = DataLoader(dataset=Random_loader(root, file_dir, file_prj_dir, sparse_view_num, True), 
                              batch_size=batch_size, num_workers=8,shuffle=True)
 #%% initialize model
-model = Dual_Domain_LDA(layer_num, start_phase, sparse_view_num, alpha, beta, mu, eta, nu)
+model = Dual_Domain_LDA(layer_num, start_phase, sparse_view_num, alpha, beta, mu, nu, lam)
 model = nn.DataParallel(model)
 model.to(device)
 
