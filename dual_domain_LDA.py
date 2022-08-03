@@ -96,9 +96,9 @@ if start_epoch > 0:
                                      (model_dir, start_epoch, start_phase), 
                                      map_location=device))
     if start_phase == 3:
-        power = start_phase - np.ceil((300-start_epoch)/100)
+        power = start_phase - np.ceil((500-start_epoch)/100)
     else:
-        power = start_phase - np.ceil((end_epoch-start_epoch)/100)
+        power = start_phase + 2 - np.ceil((end_epoch-start_epoch)/100)
     learning_rate = learning_rate * 0.9**power
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
