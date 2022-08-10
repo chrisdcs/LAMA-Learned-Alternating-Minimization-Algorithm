@@ -35,7 +35,7 @@ parser.add_argument('--alpha', type=float, default=1e-12, help='alpha parameter'
 parser.add_argument('--beta', type=float, default=1e-12, help='beta parameter')
 parser.add_argument('--mu', type=float, default=1e-12, help='beta parameter')
 parser.add_argument('--nu', type=float, default=1e-12, help='beta parameter')
-parser.add_argument('--lam', type=float, default=10., help='beta parameter')
+parser.add_argument('--lam', type=float, default=5., help='beta parameter')
 parser.add_argument('--gpu_list', type=str, default='0', help='gpu index')
 parser.add_argument('--root_dir', type=str, default='mayo_data_low_dose_256', help='root directory')
 parser.add_argument('--file_dir', type=str, default='input_64views', help='input files directory')
