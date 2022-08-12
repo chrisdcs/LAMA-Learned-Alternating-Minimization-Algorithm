@@ -386,8 +386,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         self.I_conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         self.I_conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
         
-        self.S_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 5, 5)))
-        self.S_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 5, 5)))
+        self.S_conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 1, 3, 15)))
+        self.S_conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 15)))
+        self.S_conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 15)))
+        self.S_conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 15)))
         
         self.activation = sigma_activation(0.001)
         self.activation_der = sigma_derivative(0.001)
@@ -419,8 +421,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         soft_thr = self.soft_thr * self.gamma
         
         # shape from input to output: batch size x height x width x n channels
-        x1 = F.conv2d(x_input, self.S_conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 48, h, w)
-        g = F.conv2d(self.activation(x1), self.S_conv2, padding = 1)      # (batch, 48, h, w) -> (batch, 48, h, w)
+        x1 = F.conv2d(x_input, self.S_conv1, padding = (1,7))                 # (batch,  1, h, w) -> (batch, 32, h, w)
+        x2 = F.conv2d(self.activation(x1), self.S_conv2, padding = (1,7))     # (batch, 32, h, w) -> (batch, 32, h, w)
+        x3 = F.conv2d(self.activation(x2), self.S_conv3, padding = (1,7))     # (batch, 32, h, w) -> (batch, 32, h, w)
+        g = F.conv2d(self.activation(x3), self.S_conv4, padding = (1,7))      # (batch, 32, h, w) -> (batch, 32, h, w)
         n_channel = g.shape[1]
         
         # compute norm over channel and compute g_factor
@@ -431,8 +435,10 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
         
-        g_q1 = F.conv_transpose2d(g_factor, self.S_conv2, padding = 1) * self.activation_der(x1)
-        g_q = F.conv_transpose2d(g_q1, self.S_conv1, padding = 1)
+        g_q3 = F.conv_transpose2d(g_factor, self.S_conv4, padding = (1,7)) * self.activation_der(x3)
+        g_q2 = F.conv_transpose2d(g_q3, self.S_conv3, padding = (1,7)) * self.activation_der(x2)
+        g_q1 = F.conv_transpose2d(g_q2, self.S_conv2, padding = (1,7)) * self.activation_der(x1)
+        g_q = F.conv_transpose2d(g_q1, self.S_conv1, padding = (1,7))
         
         return g_q
     
