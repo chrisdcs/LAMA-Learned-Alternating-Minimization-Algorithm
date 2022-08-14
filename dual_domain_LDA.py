@@ -29,6 +29,7 @@ parser.add_argument('--start_phase', type=int, default=3, help='phase number of 
 parser.add_argument('--end_phase', type=int, default=15, help='phase number of end training')
 parser.add_argument('--layer_num', type=int, default=15, help='phase number of LDA-Net')
 parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
+parser.add_argument('--decay_rate', type=float, default=0.9, help='decaying learning rate by it every 100 epochs')
 parser.add_argument('--group_num', type=int, default=1, help='group number for training')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size for loading data')
 parser.add_argument('--alpha', type=float, default=1e-12, help='alpha parameter')
@@ -54,6 +55,7 @@ end_epoch = args.end_epoch
 start_phase = args.start_phase
 end_phase = args.end_phase
 learning_rate = args.learning_rate
+decay_rate = args.decay_rate
 layer_num = args.layer_num
 alpha = args.alpha
 beta = args.beta
@@ -99,10 +101,10 @@ if start_epoch > 0:
         power = start_phase - np.ceil((500-start_epoch)/100)
     else:
         power = start_phase + 2 - np.ceil((end_epoch-start_epoch)/100)
-    learning_rate = learning_rate * 0.9**power
+    learning_rate = learning_rate * decay_rate**power
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 100, gamma=0.9)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 100, gamma=decay_rate)
 
 print_flag = 1   # print parameter number
 
