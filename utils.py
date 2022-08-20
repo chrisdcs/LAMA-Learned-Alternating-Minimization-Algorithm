@@ -505,18 +505,28 @@ class Dual_Domain_LDA(torch.nn.Module):
         
         """ update soft threshold, step 7-8 algorithm 1 """
         # to reduce computation, comment this section
+        x_next_detached = x_next.detach()
+        proj_next_detached = proj_next.detach()
+        f_detached = f.detach()
+        Mx = projection.apply(x_next_detached, self.options_sparse_view)
+        grad_phi_x_next = \
+                        (projection_t.apply(
+                                Mx-proj_next_detached, 
+                            self.options_sparse_view)
+                         + self.grad_r(x_next_detached)).reshape(-1,65536)
+
+        grad_phi_proj_next = \
+                        (proj_next_detached - Mx + lam * self.PT @ \
+                            (torch.index_select(proj_next_detached,2,self.index)-f_detached)
+                        + self.grad_q(proj_next_detached)).reshape(-1,262144)
         
-        norm_grad_phi_x_next = \
-                        torch.norm(
-                                    (projection_t.apply(
-                                        projection.apply(
-                                            x_next, self.options_sparse_view)-proj, 
-                                        self.options_sparse_view)
-                                     + self.grad_r(x_next)).reshape(-1,65536),
-                                    dim = -1, keepdim= True
-                                    )
+        norm_grad_next = torch.norm(torch.concat([grad_phi_x_next,
+                                                  grad_phi_proj_next],dim=-1), 
+                                    dim = -1, keepdim= True)
+                            
+			
         sig_gam_eps = self.sigma * self.gamma * self.soft_thr 
-        self.gamma = torch.where(torch.mean(norm_grad_phi_x_next) < sig_gam_eps, 
+        self.gamma = torch.where(torch.mean(norm_grad_next) < sig_gam_eps, 
                                  0.9 * self.gamma, self.gamma)
         
         return x_next, proj_next
@@ -534,190 +544,6 @@ class Dual_Domain_LDA(torch.nn.Module):
             proj_list.append(proj)
             
         return x_list, proj_list
-    
-
-class LDA_weighted(torch.nn.Module):
-    def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta):
-        super(LDA_weighted, self).__init__()
-        
-        # soft threshold
-        self.soft_thr = nn.Parameter(torch.Tensor([0.002]))
-        # sparcity bactracking
-        self.gamma = 1.0
-        # a parameter for backtracking
-        self.sigma = 10**6
-        # set phase number
-        self.PhaseNo = PhaseNo
-        self.init = True
-        
-        self.alphas = nn.Parameter(torch.tensor([alpha] * LayerNo))
-        self.betas = nn.Parameter(torch.tensor([beta] * LayerNo))
-        
-        self.SNet_list = nn.ModuleList([SBlock() for i in range(LayerNo)])
-        
-        # size: out channels  x in channels x filter size x filter size
-        # every block shares weights
-        self.conv1 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 1, 3, 3)))
-        self.conv2 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
-        self.conv3 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
-        self.conv4 = nn.Parameter(init.xavier_normal_(torch.Tensor(32, 32, 3, 3)))
-        
-        self.activation = sigma_activation(0.001)
-        self.activation_der = sigma_derivative(0.001)
-        
-        self.sparse_view_num = sparse_view_num
-        ratio = 1024 // (sparse_view_num * 8)
-        
-        options = torch.tensor([sparse_view_num * 8, 512, 256, 256, 0.006641,
-                                                 0.0072, 0, 0.006134 * ratio, 2.5, 2.5, 0, 0])
-        self.options_sparse_view = nn.Parameter(options, requires_grad=False)
-    
-    def set_PhaseNo(self, PhaseNo):
-        # used when adding more phases
-        self.PhaseNo = PhaseNo
-        
-    def set_init(self, init):
-        self.init = init
-    
-    def grad_r(self, x):
-        """ implementation of eq. (10) in paper  """
-        
-        # first obtain forward passs to get features g_i, i = 1, 2, ..., n_c
-        # This is the feature extraction map, we can change it to other networks
-        # x_input: n x 1 x 33 x 33
-        x_input = x
-        soft_thr = self.soft_thr * self.gamma
-        
-        # shape from input to output: batch size x height x width x n channels
-        x1 = F.conv2d(x_input, self.conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 32, h, w)
-        x2 = F.conv2d(self.activation(x1), self.conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        x3 = F.conv2d(self.activation(x2), self.conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        g = F.conv2d(self.activation(x3), self.conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
-        n_channel = g.shape[1]
-        
-        # compute norm over channel and compute g_factor
-        norm_g = torch.norm(g, dim = 1)
-        I1 = torch.sign(F.relu(norm_g - soft_thr))[:,None,:,:]
-        I1 = torch.tile(I1, [1, n_channel, 1, 1])
-        I0 = 1 - I1
-        
-        g_factor = I1 * F.normalize(g, dim=1) + I0 * g / soft_thr
-        
-        # implementation for eq. (9): multiply grad_g to g_factor from the left
-        # result derived from chain rule and that gradient of convolution is convolution transpose
-        g_r = F.conv_transpose2d(g_factor, self.conv4, padding = 1)
-        g_r *= self.activation_der(x3)
-        g_r = F.conv_transpose2d(g_r, self.conv3, padding = 1)
-        g_r *= self.activation_der(x2)
-        g_r = F.conv_transpose2d(g_r, self.conv2, padding = 1)
-        g_r *= self.activation_der(x1)
-        g_r = F.conv_transpose2d(g_r, self.conv1, padding = 1) 
-        
-        return g_r
-    
-    def R(self, x):
-        """ implementation of eq. (9) in paper: the smoothed regularizer  """
-        
-        # first obtain forward passs to get features g_i, i = 1, 2, ..., n_c
-        # x_input: n x 1 x h x w
-        x_input = x#.view(-1, 1, h, w)
-        soft_thr = self.soft_thr * self.gamma
-        
-        # shape from input to output: batch size x height x width x n channels
-        x1 = F.conv2d(x_input, self.conv1, padding = 1)                 # (batch,  1, h, w) -> (batch, 32, h, w)
-        x2 = F.conv2d(self.activation(x1), self.conv2, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        x3 = F.conv2d(self.activation(x2), self.conv3, padding = 1)     # (batch, 32, h, w) -> (batch, 32, h, w)
-        g = F.conv2d(self.activation(x3), self.conv4, padding = 1)      # (batch, 32, h, w) -> (batch, 32, h, w)
-        
-        norm_g = torch.norm(g, dim = 1)
-        I1 = torch.sign(F.relu(norm_g - soft_thr))
-        I0 = 1 - I1
-        
-        r = 1/(2 * soft_thr) * torch.square(norm_g) * I0 + (norm_g - soft_thr) * I1
-        r = r.reshape(-1, 65536)
-        r = torch.sum(r, -1, keepdim=True)
-        
-        return r
-    
-    def phi(self, x, proj):
-        """ The implementation for the loss function """
-        # x is the reconstruction result
-        # proj is the ground truth
-        
-        r = self.R(x)
-        f = 1/2 * torch.sum((torch.square(
-            projection.apply(x, self.options_sparse_view) - proj)).reshape(-1,262144), 
-                            dim = 1, keepdim=True)
-        
-        
-        return f + r
-    
-    def phase(self, x, proj, phase, mask):
-        """
-        x is the reconstruction output from last phase
-        proj is Phi True_x, the sampled ground truth
-        
-        """
-        alpha = torch.abs(self.alphas[phase])
-        beta = torch.abs(self.betas[phase])
-        
-        # Implementation of eq. 2/7 (ISTANet paper) Immediate reconstruction
-        # here we obtain z (in LDA paper from eq. 12)
-        z = projection.apply(x, self.options_sparse_view) - proj
-        res = self.SNet_list[phase](z)
-        z = z * mask + res * (1-mask)
-        
-        # z = z * self.weight_matrix.repeat(z.shape[0],1,1,1)
-        z = x - alpha * projection_t.apply(z, self.options_sparse_view)
-        
-        # gradient of r, the smoothed regularizer
-        grad_r_z = self.grad_r(z)
-        # u: resnet structure
-        u = z - beta * grad_r_z
-        
-        if not self.init:
-            grad_r_x = self.grad_r(x)
-            v = z - alpha * grad_r_x
-            
-            """ The rest is to just find out phi(u) and phi(v), which one is smaller """
-            phi_u = self.phi(u, proj)
-            phi_v = self.phi(v, proj)
-            
-            u_ind = torch.sign(F.relu(phi_v - phi_u))
-            v_ind = 1 - u_ind
-            u_ind = u_ind.reshape(-1,1,1,1)
-            v_ind = v_ind.reshape(-1,1,1,1)
-            x_next = u_ind * u + v_ind * v
-        else:
-            x_next = u
-        
-        """ update soft threshold, step 7-8 algorithm 1 """
-        norm_grad_phi_x_next = \
-                        torch.norm(
-                                    (projection_t.apply(
-                                        projection.apply(
-                                            x_next, self.options_sparse_view)-proj, 
-                                        self.options_sparse_view)
-                                     + self.grad_r(x_next)).reshape(-1,65536),
-                                    dim = -1, keepdim= True
-                                    )
-        sig_gam_eps = self.sigma * self.gamma * self.soft_thr 
-        self.gamma *= 0.9 if (torch.mean(norm_grad_phi_x_next) < sig_gam_eps) else 1.0
-        
-        return x_next, proj
-    
-    def forward(self, x, proj, mask):
-        
-        # x is initial given by [Phi f0*, Phi^2 f0*, .., Phi^r-1 f0*]
-        # proj is the projection data input, i.e. f0*
-        x_list = []
-        proj_list = []
-        for phase in range(self.PhaseNo):
-            x, proj = self.phase(x, proj, phase, mask)
-            x_list.append(x)
-            proj_list.append(proj)
-            
-        return x_list, proj_list
 
 class LDA(torch.nn.Module):
     def __init__(self, LayerNo, PhaseNo, sparse_view_num, alpha, beta):
@@ -728,7 +554,7 @@ class LDA(torch.nn.Module):
         # sparcity bactracking
         self.gamma = 1.0
         # a parameter for backtracking
-        self.sigma = 10**6
+        self.sigma = 2e6
         # set phase number
         self.PhaseNo = PhaseNo
         self.init = True
