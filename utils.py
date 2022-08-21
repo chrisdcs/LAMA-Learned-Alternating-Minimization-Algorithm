@@ -516,7 +516,7 @@ class Dual_Domain_LDA(torch.nn.Module):
                          + self.grad_r(x_next_detached)).reshape(-1,65536)
 
         grad_phi_proj_next = \
-                        (proj_next_detached - Mx + lam * self.PT @ \
+                        (proj_next_detached - Mx + lam.detach() * self.PT @ \
                             (torch.index_select(proj_next_detached,2,self.index)-f_detached)
                         + self.grad_q(proj_next_detached)).reshape(-1,262144)
         
