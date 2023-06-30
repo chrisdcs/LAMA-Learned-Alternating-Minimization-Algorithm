@@ -5,5 +5,6 @@ This is the code for the soon to be published paper "Learned Alternating Minimiz
 
 ## Requirements:
 pytorch 1.10
+[CTLIB] (https://github.com/xwj01/CTLIB)
 
 (More stuff like training, testing, demo, and dataset coming soon...)

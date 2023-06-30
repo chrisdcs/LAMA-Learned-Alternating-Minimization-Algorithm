@@ -4,7 +4,26 @@ from torch.nn import init
 import torch.nn.functional as F
 from torch.autograd import Function
 
+import numpy as np
 import ctlib
+
+# Helper Functions
+def generate_mask(dImg, dDet):
+    imgN = 256
+    m = np.arange(-imgN/2+1/2,imgN/2-1/2+1,1)
+    m = m**2
+    mask = np.zeros((imgN,imgN))
+    for i in range(imgN):
+        mask[:,i] = np.sqrt(m + m[i]) * dImg
+    
+    detL = dDet * 512
+    dedge = detL / 2 -dDet / 2
+    scanR = 500 / 100 / 2
+    detR = 500 / 100 / 2
+    dd = dedge * scanR / np.sqrt(dedge**2 + (scanR+detR)**2)
+    
+    return mask <= dd
+
 
 # Init-Net Blocks
 class Block(nn.Module):
@@ -124,6 +143,7 @@ class sigma_derivative(nn.Module):
         x_i_relu_deri = torch.where(x_i > 0, torch.ones_like(x_i), torch.zeros_like(x_i))
         return torch.where(torch.abs(x_i) > self.ddelta, x_i_relu_deri, self.coeff2 *x_i + 0.5)
 
+# Exact Learnable Block
 class Learnable_Block(torch.nn.Module):
     def __init__(self, **kwargs):
         super(Learnable_Block, self).__init__()
