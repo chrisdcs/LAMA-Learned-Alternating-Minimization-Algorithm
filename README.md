@@ -6,4 +6,4 @@ This is the code for the soon to be published paper "Learned Alternating Minimiz
 ## Requirements:
 pytorch 1.10
 
-(More info coming soon...)
+(More stuff like training, testing, demo, and dataset coming soon...)
