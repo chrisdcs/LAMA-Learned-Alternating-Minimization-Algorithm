@@ -5,7 +5,7 @@ Created on Wed May 25 13:12:58 2022
 @author: Chi Ding
 """
 
-from utils import *
+from utils_DDAD import *
 import torch.nn as nn
 import torch
 import os
@@ -22,14 +22,14 @@ parser.add_argument('--start_epoch', type=int, default=0, help='epoch number of 
 parser.add_argument('--end_epoch', type=int, default=500, help='epoch number of end training')
 parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
 parser.add_argument('--phase_number', type=int, default=3, help='phase number of ResNet archi.')
-parser.add_argument('--batch_size', type=int, default=16, help='batch size for training')
-parser.add_argument('--sparse_view_num', type=int, default=64, help='number of sparse views')
+parser.add_argument('--batch_size', type=int, default=4, help='batch size for training')
+parser.add_argument('--sparse_view_num', type=int, default=128, help='number of sparse views')
 parser.add_argument('--group_num', type=int, default=1, help='group number for training')
 parser.add_argument('--gpu_list', type=str, default='0', help='gpu index')
 
 parser.add_argument('--model_dir', type=str, default='model', help='trained or pre-trained model directory')
 parser.add_argument('--log_dir', type=str, default='log', help='log directory')
-parser.add_argument('--root_dir', type=str, default='mayo_data_low_dose_256', help='root directory')
+parser.add_argument('--root_dir', type=str, default='NBIA', help='root directory')
 parser.add_argument('--file_dir', type=str, default='projection_512views', help='parent files directory')
 
 args = parser.parse_args()
@@ -43,7 +43,7 @@ group_num = args.group_num
 sparse_view_num = args.sparse_view_num
 gpu_list = args.gpu_list
 
-root = args.root_dir
+root = os.path.join("../dataset", args.root_dir)
 file_dir = args.file_dir
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -75,10 +75,10 @@ def train(direction):
                                  batch_size=batch_size, num_workers=8,shuffle=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model_dir = "./%s/" % args.model_dir + direction + "_ResNet_layer_%d_group_%d_lr_%.4f" % \
-        (phase_number, group_num, learning_rate)
-    log_file_name = "./%s/" % args.log_dir + direction + "_ResNet_layer_%d_group_%d_lr_%.4f.txt" % \
-        (phase_number, group_num, learning_rate)
+    model_dir = "./%s/" % args.model_dir + args.root_dir[:4] + '_' + direction + "_ResNet_layer_%d_%dviews" % \
+        (phase_number, sparse_view_num)
+    log_file_name = "./%s/" % args.log_dir + args.root_dir[:4] + '_' + direction + "_ResNet_layer_%d_%dviews.txt" % \
+        (phase_number, sparse_view_num)
 
     # generate model saving directory
     if not os.path.exists(model_dir):
@@ -90,11 +90,12 @@ def train(direction):
         
     if start_epoch > 0:
         # continue training if start epoch is not 0
-        pre_model_dir = model_dir
-        model.load_state_dict(torch.load('./%s/net_params_%d.pkl' % (pre_model_dir, start_epoch), 
+        model.load_state_dict(torch.load('./%s/net_params_%d.pkl' % (model_dir, start_epoch), 
                                          map_location=device))
     # start training
-    sample = scio.loadmat(os.path.join(root, 'train', file_dir, 'data_0001.mat'))['data']
+    data_dir = os.path.join(root, 'train', file_dir)
+    first_file = os.listdir(data_dir)[0]
+    sample = scio.loadmat(os.path.join(data_dir, first_file))['data']
     full_view_num = sample.shape[0]
     n_partitions = full_view_num // sparse_view_num
     

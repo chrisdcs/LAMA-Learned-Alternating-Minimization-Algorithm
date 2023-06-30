@@ -7,7 +7,7 @@ Created on Fri May 27 13:47:26 2022
 
 import torch
 import torch.nn as nn
-from utils import *
+from utils_DDAD import *
 import scipy.io as scio
 import os
 import platform
@@ -24,12 +24,12 @@ parser = ArgumentParser(description='CT-Trial1-Test')
 parser.add_argument('--epoch_num', type=int, default=500, help='epoch number of start training')
 parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
 parser.add_argument('--phase_number', type=int, default=3, help='phase number for ISTA Net')
-parser.add_argument('--sparse_view_num', type=int, default=64, help='number of sparse views')
+parser.add_argument('--sparse_view_num', type=int, default=128, help='number of sparse views')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size for test dataloader')
 parser.add_argument('--group_num', type=int, default=1, help='group number for training')
 parser.add_argument('--gpu_list', type=str, default='0', help='gpu index')
 
-parser.add_argument('--root_dir', type=str, default='mayo_data_low_dose_256', help='root directory')
+parser.add_argument('--root_dir', type=str, default='NBIA', help='root directory')
 parser.add_argument('--file_dir', type=str, default='projection_512views', help='parent files directory')
 parser.add_argument('--model_dir', type=str, default='model', help='trained or pre-trained model directory')
 parser.add_argument('--result_dir', type=str, default='result', help='result directory')
@@ -42,7 +42,7 @@ phase_number = args.phase_number
 batch_size = args.batch_size
 group_num = args.group_num
 gpu_list = args.gpu_list
-root = args.root_dir
+root = os.path.join("../dataset",args.root_dir)
 file_dir = args.file_dir
 sparse_view_num = args.sparse_view_num
 
@@ -51,8 +51,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 model_forward = ResNet(phase_number)
-model_dir = "./%s/" % args.model_dir + "forward_ResNet_layer_%d_group_%d_lr_%.4f" % \
-    (phase_number, group_num, learning_rate)
+model_dir = "./%s/" % args.model_dir + args.root_dir[:4] + '_' +  "forward_ResNet_layer_%d_%dviews" % \
+    (phase_number, sparse_view_num)
 
 model_forward = nn.DataParallel(model_forward)
 model_forward = model_forward.to(device)
@@ -62,8 +62,8 @@ model_forward.load_state_dict(torch.load('./%s/net_params_%d.pkl' % (model_dir, 
 
 
 model_backward = ResNet(phase_number)
-model_dir = "./%s/" % args.model_dir + "backward_ResNet_layer_%d_group_%d_lr_%.4f" % \
-    (phase_number, group_num, learning_rate)
+model_dir = "./%s/" % args.model_dir + args.root_dir[:4] + '_' +  "backward_ResNet_layer_%d_%dviews" % \
+    (phase_number, sparse_view_num)
 
 model_backward = nn.DataParallel(model_backward)
 model_backward = model_backward.to(device)
@@ -87,7 +87,10 @@ else:
                              batch_size=batch_size, num_workers=8, shuffle=False)
     
 #%% test
-sample = scio.loadmat(os.path.join(root, 'test', file_dir, 'data_1927.mat'))['data']
+data_dir = os.path.join(root, 'test', file_dir)
+first_file = os.listdir(data_dir)[0]
+sample = scio.loadmat(os.path.join(data_dir, first_file))['data']
+
 full_view_num = sample.shape[0]
 n_partitions = full_view_num // sparse_view_num
 
@@ -168,7 +171,7 @@ def generate_train_initial():
         f_all_pred = torch.zeros((full_view_num,512)).to(device)
         for i in range(n_partitions):
             for j in range(sparse_view_num):
-                f_all_pred[i + 8*j] = f_list[i][j,:]
+                f_all_pred[i + n_partitions * j] = f_list[i][j,:]
         
         f_all_pred = f_all_pred.clip(0,data.max().item()).unsqueeze_(0).unsqueeze_(0)
         RMSE = torch.mean(torch.pow(f_all_pred-data,2))/torch.mean(torch.pow(data,2))
@@ -234,7 +237,7 @@ def generate_test_initial():
         f_all_pred = torch.zeros((full_view_num,512)).to(device)
         for i in range(n_partitions):
             for j in range(sparse_view_num):
-                f_all_pred[i + 8*j] = f_list[i][j,:]
+                f_all_pred[i + n_partitions*j] = f_list[i][j,:]
         
         f_all_pred = f_all_pred.clip(0,data.max().item()).unsqueeze_(0).unsqueeze_(0)
         RMSE = torch.mean(torch.pow(f_all_pred-data,2))/torch.mean(torch.pow(data,2))
