@@ -1,5 +1,6 @@
 import os
 import glob
+import torch
 import scipy.io as scio
 import numpy as np
 from torch.utils.data import Dataset
