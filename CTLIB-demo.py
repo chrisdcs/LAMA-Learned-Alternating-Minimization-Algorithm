@@ -12,10 +12,10 @@ from model import generate_mask
 
     
 # load original image
-image = scio.loadmat('data/image/data_0001.mat')['data']
+image = scio.loadmat('dataset/image/data_0001.mat')['data']
 
 # load sparse view sinogram with 128 views
-sinogram = scio.loadmat('data/sinogram/128views/data_0001.mat')['data']
+sinogram = scio.loadmat('dataset/sinogram/128views/data_0001.mat')['data']
 views = sinogram.shape[0]
 n_bins = sinogram.shape[1]
 sinogram = torch.FloatTensor(sinogram).contiguous().cuda()
