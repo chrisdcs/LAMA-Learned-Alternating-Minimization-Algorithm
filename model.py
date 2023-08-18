@@ -379,7 +379,7 @@ class LAMA(torch.nn.Module):
             
             # update soft threshold
             norm_grad_phi_next = self.norm_grad_phi(x, z, f, gamma)
-            sig_gam_eps = self.sigma * gamma * torch.mean(torch.abs(self.SNet.soft_thr)+torch.abs(self.ImgNet.soft_thr))
+            sig_gam_eps = self.sigma * gamma * (torch.abs(self.SNet.soft_thr)+torch.abs(self.ImgNet.soft_thr)) / 2
             sig_gam_eps = sig_gam_eps.detach()
             gamma = torch.where(torch.mean(norm_grad_phi_next) < sig_gam_eps, torch.mul(gamma, 0.9), gamma)
             
