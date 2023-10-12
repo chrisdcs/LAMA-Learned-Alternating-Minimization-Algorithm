@@ -3,7 +3,7 @@
 This is the official site for the implementation of the published paper in MICCAI 2023: "Learned Alternating Minimization Algorithm for Dual-domain Sparse-View CT Reconstruction."
 
 
-## Requirements:
+## Requirements
 PyTorch 1.10
 
 [CTLIB](https://github.com/xwj01/CTLIB)
