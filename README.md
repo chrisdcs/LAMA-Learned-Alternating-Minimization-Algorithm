@@ -20,7 +20,10 @@ If you find this implementation useful, please consider citing our work:
 @inproceedings{ding2023LAMA,
   title={Learned Alternating Minimization Algorithm for Dual-Domain Sparse-View CT Reconstruction},
   author={Chi Ding, Qingchao Zhang, Ge Wang, Xiaojing Ye, Yunmei Chen},
-  booktitle={MICCAI},
-  year={2023}
+  booktitle={Medical Image Computing and Computer Assisted Intervention -- MICCAI 2023},
+  year={2023},
+  publisher={Springer Nature Switzerland},
+  pages={173--183},
+  isbn={978-3-031-43999-5"}
 }
 ```
