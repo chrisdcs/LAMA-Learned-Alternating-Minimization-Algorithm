@@ -17,9 +17,9 @@ PyTorch 1.10
 ## Citation
 If you find this implementation useful, please consider citing our work:
 ```bibtex
-@inproceedings{ding2023LAMA,
+@InProceedings{ding2023LAMA,
   title={Learned Alternating Minimization Algorithm for Dual-Domain Sparse-View CT Reconstruction},
-  author={Chi Ding, Qingchao Zhang, Ge Wang, Xiaojing Ye, Yunmei Chen},
+  author={Ding, Chi and Zhang, Qingchao and Wang, Ge and Ye, Xiaojing and Chen, Yunmei},
   booktitle={Medical Image Computing and Computer Assisted Intervention -- MICCAI 2023},
   year={2023},
   publisher={Springer Nature Switzerland},
