@@ -12,7 +12,7 @@ PyTorch 1.10
 
 ## Model
 ![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg)
-![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg){width=85%}
+![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
 
 ## Citation
 If you find this implementation useful, please consider citing our work:
