@@ -11,8 +11,8 @@ PyTorch 1.10
 (More stuff like training, testing, demo, and dataset coming soon...)
 
 ## Model
-![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg)
-![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
+![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.png)
+![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.png)
 
 ## Citation
 If you find this implementation useful, please consider citing our work:
