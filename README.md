@@ -17,9 +17,13 @@ Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
 ## Model
 LAMA in one iteration:
-![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg)
-Network unrolling:
-![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
+<p align="center">
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg" width="900" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg" width="800" />
+</p>
 
 ## Visual Results
 <p align="center">
