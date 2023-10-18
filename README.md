@@ -24,6 +24,9 @@ Network unrolling:
 ## Visual Results
 <p align="center">
   <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/mayoResult.png" />
+</p>
+
+<p align="center">
   <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/NBIAResult.png" />
 </p>
 
