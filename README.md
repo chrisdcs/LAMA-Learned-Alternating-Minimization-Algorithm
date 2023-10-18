@@ -24,7 +24,7 @@ Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 ## Model
 LAMA in one iteration:
 <p align="center">
-  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg" width="960" />
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg" width="900" />
 </p>
 Network unrolling:
 <p align="center">
