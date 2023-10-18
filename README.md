@@ -22,7 +22,8 @@ Network unrolling:
 ![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
 
 ## Visual Results
-
+![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/mayoResult.png)
+![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/NBIAResult.png)
 
 ## Citation
 If you find this implementation useful, please consider citing our work:
