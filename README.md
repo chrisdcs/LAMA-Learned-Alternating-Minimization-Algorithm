@@ -21,6 +21,9 @@ LAMA in one iteration:
 Network unrolling:
 ![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
 
+## Visual Results
+
+
 ## Citation
 If you find this implementation useful, please consider citing our work:
 ```bibtex
