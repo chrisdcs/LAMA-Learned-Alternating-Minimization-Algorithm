@@ -10,6 +10,7 @@ scipy==1.11.1
 numpy==1.25.2
 scikit-image==0.19.3
 opencv-python==4.8.0
+[CTLIB](https://github.com/xwj01/CTLIB)
 ```
 Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
