@@ -26,10 +26,12 @@ LAMA in one iteration:
 </p>
 
 ## Visual Results
+Mayo clinic LDCT grand challenge:
 <p align="center">
   <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/mayoResult.png" width="720" />
 </p>
 
+NBIA dataset:
 <p align="center">
   <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/NBIAResult.png" width="720" />
 </p>
