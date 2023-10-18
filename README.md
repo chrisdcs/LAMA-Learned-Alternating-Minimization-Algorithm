@@ -24,11 +24,11 @@ Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 ## Model
 LAMA in one iteration:
 <p align="center">
-  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg" width="900" />
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg" width="800" />
 </p>
 Network unrolling:
 <p align="center">
-  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg" width="700" />
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg" width="600" />
 </p>
 
 ## Sparse-View CT Reconstruction
