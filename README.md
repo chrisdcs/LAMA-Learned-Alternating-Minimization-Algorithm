@@ -14,7 +14,9 @@ opencv-python==4.8.0
 ```
 Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
-(More stuff like training, testing, demo, and dataset coming soon...)
+## Training (Coming soon)
+
+## Demo (Coming soon)
 
 ## Model
 LAMA in one iteration:
@@ -43,6 +45,12 @@ Mayo:
 |:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
 |PSNR|64<br>128|27.17 ± 1.11<br>33.28 ± 0.85|35.70 ± 1.50<br>42.73 ± 1.08|37.16 ± 1.33<br>43.00 ± 0.91|37.90 ± 1.44<br>43.48 ± 1.04|43.02 ± 2.08<br>49.77 ± 0.96|44.58 ± 1.15<br>50.01 ± 0.69|
 |SSIM|64<br>128|0.596 ± 9e−4<br>0.759 ± 1e−3|0.923 ± 4e−5<br>0.974 ± 4e−5|0.932 ± 1e−4<br>0.976 ± 2e−5|0.952 ± 1.0e−4<br>0.985 ± 1e−5|0.980 ± 3e−5<br>0.995 ± 1e−6|0.986 ± 7e−6<br>0.995 ± 6e−7|
+
+NBIA:
+| Metrics |  Views  |   FBP   |  DDNet  |   LDA   |DuDoTrans| Learn++ |LAMA(ours)|
+|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+|PSNR|64<br>128|25.72 ± 1.93<br>31.86 ± 1.27|35.59 ± 2.76<br>40.23 ± 1.98|34.31 ± 2.20<br>40.26 ± 2.57|35.53 ± 2.63<br>40.67 ± 2.84|38.53 ± 3.41<br>43.35 ± 4.02|41.40 ± 3.54<br>45.20 ± 4.23|
+|SSIM|64<br>128|0.592 ± 2e−3<br>0.743 ± 2e−3|0.920 ± 3e−4<br>0.961 ± 1e−4|0.896 ± 4e−4<br>0.963 ± 1e−4|0.938 ± 2e−4<br>0.976 ± 6e−5 |0.956 ± 2e−4<br>0.983 ± 5e−5|0.976 ± 8e−5<br>0.988 ± 3e−5|
 
 ## Citation
 If you find this implementation useful, please consider citing our work:
