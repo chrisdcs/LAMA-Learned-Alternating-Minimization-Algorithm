@@ -11,7 +11,9 @@ PyTorch 1.10
 (More stuff like training, testing, demo, and dataset coming soon...)
 
 ## Model
+LAMA in one iteration:
 ![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/iteration.jpg)
+Network unrolling:
 ![](https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg)
 
 ## Citation
