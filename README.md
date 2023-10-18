@@ -28,12 +28,12 @@ Network unrolling:
 
 ## Sparse-View CT Reconstruction
 Mayo clinic LDCT grand challenge:
-
+<center>
 |Metrics|Views|FBP|DDNet|LDA|DuDoTrans|Learn++|LAMA (ours)|
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 |PSNR|64<br>128|27.17 ± 1.11<br>33.28 ± 0.85|35.70 ± 1.50<br>42.73 ± 1.08|37.16 ± 1.33<br>43.00 ± 0.91|37.90 ± 1.44<br>43.48 ± 1.04|43.02 ± 2.08<br>49.77 ± 0.96|44.58 ± 1.15<br>50.01 ± 0.69|
 |SSIM|64<br>128|0.596 ± 9e−4<br>0.759 ± 1e−3|0.923 ± 4e−5<br>0.974 ± 4e−5|0.932 ± 1e−4<br>0.976 ± 2e−5|0.952 ± 1.0e−4<br>0.985 ± 1e−5|0.980 ± 3e−5<br>0.995 ± 1e−6|0.986 ± 7e−6<br>0.995 ± 6e−7|
-
+</center>
 <p align="center">
   <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/mayoResult.png" width="720" />
 </p>
