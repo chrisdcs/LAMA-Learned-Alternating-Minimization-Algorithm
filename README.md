@@ -28,7 +28,7 @@ LAMA in one iteration:
 </p>
 Network unrolling:
 <p align="center">
-  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg" width="800" />
+  <img src="https://github.com/chrisdcs/LAMA-Learned-Alternating-Minimization-Algorithm/blob/master/figures/network.jpg" width="700" />
 </p>
 
 ## Sparse-View CT Reconstruction
