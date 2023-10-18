@@ -4,9 +4,14 @@ This is the official site for the implementation of the published paper in MICCA
 
 
 ## Dependencies
-PyTorch 1.10
-
-[CTLIB](https://github.com/xwj01/CTLIB)
+```
+pytorch==1.10
+scipy==1.11.1
+numpy==1.25.2
+scikit-image==0.19.3
+opencv-python==4.8.0
+```
+Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
 (More stuff like training, testing, demo, and dataset coming soon...)
 
