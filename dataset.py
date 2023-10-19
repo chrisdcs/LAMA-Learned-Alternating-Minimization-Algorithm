@@ -4,10 +4,11 @@ import torch
 import scipy.io as scio
 import numpy as np
 from torch.utils.data import Dataset
+from torchvision.transforms.functional import resize
 
 # Simple CNN Init-Net Data Loader
 class CNN_loader(Dataset):
-    def __init__(self, root, file_path, sparse_view_num, train):
+    def __init__(self, root, file_path, num_sparse_view, train):
         self.train = train
         if train:
             folder = 'train'
@@ -15,9 +16,9 @@ class CNN_loader(Dataset):
             folder = 'test'
         
         self.file_path = file_path
-        self.sparse_view_num = sparse_view_num
+        self.num_sparse_view = num_sparse_view
         self.files = sorted(glob.glob(os.path.join(root, folder, file_path, 'data')+'*.mat'))
-        self.index = [(i) for i in range(0,512,512//sparse_view_num)]
+        self.index = [(i) for i in range(0,512,512/ num_sparse_view)]
     
     def __getitem__(self, index):
         file = self.files[index]
@@ -35,7 +36,7 @@ class CNN_loader(Dataset):
 
 # Init-Net Phi Data Loader
 class Phi_loader(Dataset):
-    def __init__(self, root, file_path, sparse_view_num, train):
+    def __init__(self, root, file_path, num_sparse_view, train):
         self.train = train
         if train == True:
             folder = 'train'
@@ -43,10 +44,10 @@ class Phi_loader(Dataset):
             folder = 'test'
         
         self.file_path = file_path
-        self.sparse_view_num = sparse_view_num
+        self.num_sparse_view = num_sparse_view
         self.files = sorted(glob.glob(os.path.join(root, folder, file_path, 'data')+'*.mat'))
         self.full_view_num = scio.loadmat(self.files[0])['data'].shape[0]
-        self.n_partition = self.full_view_num // self.sparse_view_num
+        self.n_partition = self.full_view_num // self.num_sparse_view
         
     
     def __getitem__(self, index):
@@ -54,8 +55,8 @@ class Phi_loader(Dataset):
         data_list = []
         data = scio.loadmat(file)['data']
         for i in range(self.n_partition):
-            f_i = np.zeros((self.sparse_view_num, data.shape[1]))
-            for j in range(self.sparse_view_num):
+            f_i = np.zeros((self.num_sparse_view, data.shape[1]))
+            for j in range(self.num_sparse_view):
                 f_i[j,:] = data[i + j*self.n_partition, :]
             data_list.append(torch.FloatTensor(f_i).unsqueeze_(0))
         
@@ -73,7 +74,7 @@ class Phi_loader(Dataset):
 # Data Loader for LAMA
 class LAMA_loader(Dataset):
     # need projection data, ground truth and input images
-    def __init__(self, root, file_path, prj_file_path, sparse_view_num, train):
+    def __init__(self, root, file_path, prj_file_path, num_sparse_view, train):
         self.train = train
         if train == True:
             folder = 'train'
@@ -82,7 +83,7 @@ class LAMA_loader(Dataset):
         
         self.file_path = file_path
         self.prj_file_path = prj_file_path
-        self.sparse_view_num = sparse_view_num
+        self.num_sparse_view = num_sparse_view
         self.files = sorted(glob.glob(os.path.join(root, folder, self.file_path, 'data')+'*.mat'))
         
         
