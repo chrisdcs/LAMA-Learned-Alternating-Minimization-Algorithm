@@ -14,8 +14,8 @@ opencv-python==4.8.0
 ```
 Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
-## Dataset (Coming soon)
-
+## Dataset
+The two dataset used for experiments in the paper are provided in this [GoogleDrive](https://drive.google.com/drive/folders/1anmVzTOJqrhFJ68go8EkOi5qZJrfMoez?usp=share_link).
 
 ## Training (Coming soon)
 
