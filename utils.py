@@ -1,7 +1,22 @@
-import numpy as np
+
 import os
-import scipy.io as scio
 import glob
+import torch
+import ctlib
+import yaml
+import numpy as np
+import scipy.io as scio
+
+def load_CT_config(config_file):
+    if isinstance(config_file, str):
+        with open(config_file, errors='ignore') as f:
+            hyp = yaml.safe_load(f)
+    views, dets, width, height, dImg, dDet, Ang0, dAng, s2r, d2r, binshift, scan_type = \
+    hyp['views'], hyp['dets'], hyp['width'], hyp['height'], hyp['dImg'], hyp['dDet'], hyp['Ang0'], hyp['dAng'], hyp['s2r'], hyp['d2r'], hyp['binshift'], hyp['scan_type']  
+    options = torch.FloatTensor([views, dets, width, height, dImg, dDet, Ang0, dAng, s2r, d2r, binshift, scan_type])
+    options = options.cuda()
+    
+    return options
 
 
 def generate_mask(dImg=0.006641, dDet=0.0072):
@@ -126,5 +141,3 @@ def fbp_data(dataset_name, num_sparse_view, sparse_sinogram_folder, save_folder_
         scio.savemat(name, {'data': recon_data})
         
     print('Done!')
-
-
