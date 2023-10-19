@@ -17,9 +17,9 @@ Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 ## Dataset
 The two dataset used for experiments in the paper are provided in this [GoogleDrive](https://drive.google.com/drive/folders/1anmVzTOJqrhFJ68go8EkOi5qZJrfMoez?usp=share_link).
 
-## Training (Coming soon)
+## Training (Cleaning up Code & Coming soon)
 
-## Demo (Coming soon)
+## Demo (Cleaning up Code & Coming soon)
 
 ## Model
 LAMA in one iteration:
