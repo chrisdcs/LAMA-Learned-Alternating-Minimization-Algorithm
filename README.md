@@ -22,6 +22,7 @@ The two dataset used for experiments in the paper are provided in this [GoogleDr
 ## Training (Cleaning up Code & Coming soon)
 
 ## Demo (Cleaning up Code & Coming soon)
+CTLIB-demo.ipynb is ready.
 
 ## Model
 LAMA in one iteration:
