@@ -3,32 +3,39 @@
 # train algorithm for 15 iterations (phases)
 n_iter: 15
 start_iter: 15
+
+# number of epochs per phase [warm up epochs, main epochs]
+epochs: [300, 200]
+
 # number of sparse views
 n_views: 64
-# number of convolutional channels for image networks
-n_Ifeats: 32
-# number of convolutional channels for sinogram networks
-n_Sfeats: 32
-# number of convolutional layers for image networks
-n_Iconvs: 4
-# number of convolutional layers for sinogram networks
-n_Sconvs: 4
-# kernel size for image networks
-Iksize: [3,3]
-# kernel size for sinogram networks
-Sksize: [3,15]
-# padding for image networks
-Ipadding: [1,1]
-# padding for sinogram networks
-Spadding: [1,7]
+# dataset name
+data: mayo
+# type of initialization
+init: vanillaCNN
 
-# other parameters for LAMA
+# hyper-parameters
 alpha: 1.e-12 
 beta: 1.e-12 
 mu: 1.e-12
 nu: 1.e-12
-lam: 10
+lam: 10.0
 eta: 1.e-10
 
-# CTLIB config file name
-ctlib_config: models/64views.yaml
+# CT config file name
+CT_config: models/64views.yaml
+
+backbone:
+[
+  # I: image network, S: sinogram network, Conv: convolutional layer
+  # [in_channels, out_channels, kernel_size, stride, padding]
+  [I, Conv, [1, 32, 3, 1, 1]],
+  [I, Conv, [1, 32, 3, 1, 1]],
+  [I, Conv, [1, 32, 3, 1, 1]],
+  [I, Conv, [1, 32, 3, 1, 1]],
+
+  [S, Conv, [1, 32, (3,15), (1,7), 1]],
+  [S, Conv, [1, 32, (3,15), (1,7), 1]],
+  [S, Conv, [1, 32, (3,15), (1,7), 1]],
+  [S, Conv, [1, 32, (3,15), (1,7), 1]],
+]
