@@ -18,8 +18,11 @@ Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 The two dataset used for experiments in the paper are provided in this [OneDrive](https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0). To download this for Linux, you can use the following commands:
 ```
 wget -O dataset.zip "https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0&download=1"
-
+```
+To unzip and process the data, you can use the following commands:
+```
 unzip dataset.zip
+python process-data.py
 ```
 
 (This link only has raw data, they need to be properly processed for training and testing in LAMA. More details coming soon.)
