@@ -9,3 +9,5 @@ for dataset in datasets:
         CT.down_sample(dataset, view, 'FullViewNoiseless', train=False)
         CT.fbp_data(dataset, view, train=True)
         CT.fbp_data(dataset, view, train=False)
+        
+print("Done!")
