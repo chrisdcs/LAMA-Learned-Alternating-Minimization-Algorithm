@@ -1,14 +1,16 @@
 
 import os
-import glob
 import torch
 import ctlib
 import yaml
 import numpy as np
 import scipy.io as scio
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 def load_CT_config(config_file):
-    if isinstance(config_file, str):
+    if isinstance(config_file, str) or isinstance(config_file, Path):
         with open(config_file, errors='ignore') as f:
             hyp = yaml.safe_load(f)
     views, dets, width, height, dImg, dDet, Ang0, dAng, s2r, d2r, binshift, scan_type = \
@@ -50,20 +52,18 @@ def generate_mask(dImg=0.006641, dDet=0.0072):
     
     return mask <= dd
 
-def down_sample(dataset_name, num_sparse_view, full_view_folder, save_folder_name, train=True):
+def down_sample(dataset, n_views, fullview_dir, train=True):
     """
     This function downsamples full-view sinogram data into sparse-view sinogram data
     
     Parameters
     ----------
-    dataset_name : str
+    dataset : str
         'mayo' or 'NBIA'
-    num_sparse_view : int
+    n_views : int
         number of views for sparse-view CT. must be divisible by 1024.
-    full_view_folder : str
+    fullview_dir : str
         ex: 'FullViewNoiseless'
-    save_folder_name : str
-        ex: 'Sparse'
     train : bool, optional
         generate training or test set. The default is True.
 
@@ -71,79 +71,67 @@ def down_sample(dataset_name, num_sparse_view, full_view_folder, save_folder_nam
     
     # get files from full view data folder
     if train:
-        file_path = dataset_name + r'/train'
+        data_dir = ROOT / 'dataset' / dataset / 'train'
     else:
-        file_path = dataset_name + r'/test'
-    files = sorted(glob.glob(os.path.join(file_path, full_view_folder, 'data')+'*.mat'))
+        data_dir = ROOT / 'dataset' / dataset / 'test'
+    F_list = sorted(list((data_dir / fullview_dir).glob('data*.mat')))
     
     # get full view number and number of partitions
-    l = len(files)
-    sample = scio.loadmat(files[0])['data']
-    full_view_num = sample.shape[0]
-    n_partition = full_view_num//num_sparse_view
+    sample = scio.loadmat(F_list[0])['data']
+    full_view = sample.shape[0]
+    n_partition = full_view // n_views
     
     # generate save path
-    save_path = os.path.join(file_path, save_folder_name + '_' + str(num_sparse_view) + 'views')
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    save_dir = data_dir / f'{n_views}views'
+    if not os.path.exists(save_dir):
+        save_dir.mkdir()
     
-    for i in range(l):
-        print('downsampling', files[i][-13:])
-        data = scio.loadmat(files[i])['data']
-        sparse_data = np.zeros((num_sparse_view, data.shape[1]))
-        for j in range(num_sparse_view):
+    for file in F_list:
+        data = scio.loadmat(file)['data']
+        sparse_data = np.zeros((n_views, data.shape[1]))
+        for j in range(n_views):
             sparse_data[j,:] = data[j * n_partition, :]
-        name = os.path.join(save_path, files[i][-13:])
-        scio.savemat(name, {'data': sparse_data})
-        
-    print('Done!')
+        scio.savemat(save_dir / file.name, {'data': sparse_data})
+    mode = 'train' if train else 'test'
+    print(f'Downsample ({dataset}, {mode}) to {n_views} views finished!\n')
     
-def fbp_data(dataset_name, num_sparse_view, sparse_sinogram_folder, save_folder_name, train=True):
+def fbp_data(dataset, n_views, train=True):
     """
     This function applies fbp to projection data to obtain initial images: range (0,1)
 
     Parameters
     ----------
-    dataset_name : str
+    dataset : str
         'mayo' or 'NBIA'
-    num_sparse_view : int
+    n_views : int
         number of views for sparse-view CT. must be divisible by 1024.
-    sparse_sinogram_folder : str
-        the folder that stores sparse-view sinogram data.
-    save_folder_name : str
-        the name you want to call the folder for storing fbp images.
     train : bool, optional
         apply on training/test set. The default is True.
 
     """
     # get files from full view data folder
     if train:
-        file_path = dataset_name + r'/train'
+        data_dir = ROOT / 'dataset' / dataset / 'train'
     else:
-        file_path = dataset_name + r'/test'
-    files = sorted(glob.glob(os.path.join(file_path, sparse_sinogram_folder, 'data')+'*.mat'))
-    
-    # get full view number and number of partitions
-    l = len(files)
+        data_dir = ROOT / 'dataset' / dataset / 'test'
+    F_list = sorted(list((data_dir / f'{n_views}views').glob('data*.mat')))
     
     # generate save path
-    save_path = os.path.join(file_path, save_folder_name + '_' + str(num_sparse_view) + 'views')
+    save_path = data_dir / f'FBP{n_views}views'
     if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    ratio = 1024//num_sparse_view
-    options = torch.Tensor([num_sparse_view,512,256,256,0.006641,0.0072,0,0.006134*(ratio),2.5,2.5,0,0])
-    options = options.cuda()
+        save_path.mkdir()
+    cfg_file = ROOT / 'config' / f'{n_views}views.yaml'
+    ct_cfg = load_CT_config(cfg_file)
     mask = generate_mask()
-    for i in range(l):
-        
-        data = scio.loadmat(files[i])['data']
-        data = torch.FloatTensor(data.reshape(1,1,num_sparse_view,512)).cuda().contiguous()
-        recon_data = ctlib.fbp(data,options)
+    for file in F_list:
+        data = scio.loadmat(file)['data']
+        data = torch.FloatTensor(data.reshape(1,1,n_views,512)).cuda().contiguous()
+        recon_data = ctlib.fbp(data,ct_cfg)
         recon_data = recon_data.squeeze().detach().cpu().numpy()
         recon_data = recon_data * mask
         recon_data = recon_data / recon_data.max()
         recon_data = recon_data.clip(0,1)
-        name = os.path.join(save_path, files[i][-13:])
-        scio.savemat(name, {'data': recon_data})
-        
-    print('Done!')
+        scio.savemat(save_path / file.name, {'data': recon_data})
+    
+    mode = 'train' if train else 'test'
+    print(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!\n')
