@@ -1,12 +1,12 @@
 # CTLIB Hyper Parameters
-views: 1024
+views: 512
 dets: 512
 width: 256
 height: 256
 dImg: 0.006641
 dDet: 0.0072
 Ang0: 0
-dAng: 0.006134
+dAng: 0.012268
 s2r: 2.5
 d2r: 2.5
 binshift: 0
