@@ -38,13 +38,14 @@ def generate_sparse_CT(datasets = ['mayo', 'NBIA'], n_views = [64, 128]):
     
 def run(
         device='',
-        weights='',
+        network='',
         n_views=64,
         dataset='mayo'
         ):
     model = InitNet()
     model = nn.DataParallel(model)
     model = model.to(device)
+    weights = ROOT / 'models' / 'initNet' / f'{dataset}{n_views}-{network}.pkl'
     model.load_state_dict(torch.load(weights))
     
     mask = CT.generate_mask()
@@ -85,8 +86,7 @@ def parse_opt():
     parser.add_argument('--dataset', type=str, default='mayo', help='dataset name')
     parser.add_argument('--n_views', type=int, default=64, help='number of views')
     parser.add_argument('--device', type=str, default='cuda', help='device')
-    parser.add_argument('--weights', nargs='+', type=str, 
-                        default=ROOT / 'models' / 'initNet' / 'net_params_200.pkl', help='weights')
+    parser.add_argument('--network', type=str, default='CNN', help='initialization network name')
     
     opt = parser.parse_args()
     print_args(vars(opt))
