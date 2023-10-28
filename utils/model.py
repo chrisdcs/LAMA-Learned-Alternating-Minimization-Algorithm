@@ -75,23 +75,49 @@ class LongBlock(nn.Module):
         
         return x
 
+class InitBlock(nn.Module):
+    def __init__(self):
+        super(InitBlock, self).__init__()
+        
+        # size: out channels  x in channels x filter size x filter size
+        self.conv1_forward = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 1, 3, 3)))
+        self.conv2_forward = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 3, 3)))
+        self.conv3_forward = nn.Parameter(init.xavier_normal_(torch.Tensor(48, 48, 3, 3)))
+        self.conv4_forward = nn.Parameter(init.xavier_normal_(torch.Tensor(1, 48, 3, 3)))
+
+        
+    def forward(self, x_input):
+        
+        x = F.conv2d(x_input, self.conv1_forward, padding=1)
+        x = F.relu(x)
+        x = F.conv2d(x, self.conv2_forward, padding=1)
+        x = F.relu(x)
+        x = F.conv2d(x, self.conv3_forward, padding=1)
+        x = F.relu(x)
+        x = F.conv2d(x, self.conv4_forward, padding=1)
+        # resnet structure
+        x = x + x_input
+        
+        return x
+
 # Init-Net
 class InitNet(torch.nn.Module):
-    def __init__(self, LayerNo):
+    def __init__(self, LayerNo=5):
         super(InitNet, self).__init__()
         onelayer = []
         self.LayerNo = LayerNo
         
         for i in range(LayerNo):
-            onelayer.append(LongBlock())
+            onelayer.append(InitBlock())
         
         self.fcs = nn.ModuleList(onelayer)
         
     def forward(self, x):
+        inp = x
         for i in range(self.LayerNo):
             # resnet architecture
             x = self.fcs[i](x)
-        return x
+        return x + inp
 
 # CT library functions
 class projection(Function):

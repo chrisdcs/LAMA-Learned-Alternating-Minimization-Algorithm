@@ -7,7 +7,10 @@ import numpy as np
 import scipy.io as scio
 from pathlib import Path
 
+from utils.general import LOGGER
+
 ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.path.relpath(ROOT, Path.cwd())) # relative path to current working directory
 
 def load_CT_config(config_file):
     if isinstance(config_file, str) or isinstance(config_file, Path):
@@ -85,6 +88,10 @@ def down_sample(dataset, n_views, fullview_dir, train=True):
     save_dir = data_dir / f'{n_views}views'
     if not os.path.exists(save_dir):
         save_dir.mkdir()
+    else:
+        #print(f'{n_views} views data for {dataset} already exists!')
+        LOGGER.info(f'{n_views} views data for {dataset} already exists!\n')
+        return
     
     for file in F_list:
         data = scio.loadmat(file)['data']
@@ -93,7 +100,8 @@ def down_sample(dataset, n_views, fullview_dir, train=True):
             sparse_data[j,:] = data[j * n_partition, :]
         scio.savemat(save_dir / file.name, {'data': sparse_data})
     mode = 'train' if train else 'test'
-    print(f'Downsample ({dataset}, {mode}) to {n_views} views finished!\n')
+    # print(f'Downsample ({dataset}, {mode}) to {n_views} views finished!')
+    LOGGER.info(f'Downsample ({dataset}, {mode}) to {n_views} views finished!\n')
     
 def fbp_data(dataset, n_views, train=True):
     """
@@ -120,6 +128,10 @@ def fbp_data(dataset, n_views, train=True):
     save_path = data_dir / f'FBP{n_views}views'
     if not os.path.exists(save_path):
         save_path.mkdir()
+    else:
+        # print(f'FBP {n_views} views data for {dataset} already exists!')
+        LOGGER.info(f'FBP {n_views} views data for {dataset} already exists!\n')
+        return
     cfg_file = ROOT / 'config' / f'{n_views}views.yaml'
     ct_cfg = load_CT_config(cfg_file)
     mask = generate_mask()
@@ -134,4 +146,5 @@ def fbp_data(dataset, n_views, train=True):
         scio.savemat(save_path / file.name, {'data': recon_data})
     
     mode = 'train' if train else 'test'
-    print(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!\n')
+    # print(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!')
+    LOGGER.info(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!\n')
