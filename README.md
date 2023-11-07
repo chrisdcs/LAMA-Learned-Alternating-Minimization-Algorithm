@@ -24,13 +24,16 @@ To unzip and process the data, you can use the following commands:
 unzip dataset.zip
 python process-data.py
 ```
-
-(This link only has raw data, they need to be properly processed for training and testing in LAMA. More details coming soon.)
+To process data on specific dataset, number of views, type of initialization network, train or test, you can use the following commands as an example:
+```
+python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
+```
+This will generate the sparse-view sinogram, FBP reconstruction images, and the initialized sinogram and images after certain type of initialization network. The data will be saved in separate folders in the directory ```dataset/mayo/train/``` for the example.
 
 ## Training (Cleaning up Code & Coming soon)
 
 ## Demo (Cleaning up Code & Coming soon)
-CTLIB-demo.ipynb is ready.
+```CTLIB-demo.ipynb``` is ready for using. This demo is written to help the readers to familiarize the usage of the CTLIB.
 
 ## Model
 LAMA in one iteration:
