@@ -24,11 +24,11 @@ To unzip and process the data, you can use the following commands:
 unzip dataset.zip
 python process-data.py
 ```
-To process data on specific dataset, number of views, type of initialization network, train or test, you can use the following commands as an example:
+To process data on specific dataset, number of views, type of initialization network, train or test, you can use the following command as an example:
 ```
 python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
 ```
-This will generate the sparse-view sinogram, FBP reconstruction images, and the initialized sinogram and images after certain type of initialization network. The data will be saved in separate folders in the directory ```dataset/mayo/train/``` for the example.
+This will generate the following for the ```mayo clinic dataset```: 64-view sinogram, FBP images, and the initialized sinogram and images after a simple CNN initialization network as the training data for LAMA. The data will be saved in separate folders in the directory ```dataset/mayo/train/``` for the example.
 
 ## Training (Cleaning up Code & Coming soon)
 
