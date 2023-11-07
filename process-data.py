@@ -32,7 +32,6 @@ def parse_opt():
     parser.add_argument('--train', type=bool, default=True, help='training data or test data')
     parser.add_argument('--n_views', type=int, default=64, help='number of views for sparse-view CT')
     parser.add_argument('--network', type=str, default='CNN', help='initialization network name')
-    parser.add_argument('--save', type=bool, default=True, help='save or not')
     
     opt = parser.parse_args()
     print_args(vars(opt))
@@ -52,12 +51,14 @@ def initNet_data(dataset, n_views, network, train=True):
     weights = ROOT / 'models' / 'initNet' / f'{dataset}{n_views}-{network}.pkl'
     model.load_state_dict(torch.load(weights))
     mode = 'train' if train else 'test'
-    save_dir = ROOT / 'dataset' / dataset / mode / f'{network}{n_views}views'
-    if save_dir.exists():
+    img_save_dir = ROOT / 'dataset' / dataset / mode / f'FBP_{network}_{n_views}views'
+    sin_save_dir = ROOT / 'dataset' / dataset / mode / f'{network}_{n_views}views'
+    if img_save_dir.exists() and sin_save_dir.exists():
         LOGGER.info(f"Init-Net data generation ({dataset} {mode} {n_views}views {network}) already exists!")
         LOGGER.info(f"Init-Net data generation ({dataset} {mode} {n_views}views {network}) complete!\n")
         return
-    save_dir.mkdir(parents=True)
+    img_save_dir.mkdir(parents=True)
+    sin_save_dir.mkdir(parents=True)
     mask = CT.generate_mask()
     ct_cfg = CT.load_CT_config(ROOT / 'config' / '512views.yaml')
     ct_cfg_full = CT.load_CT_config(ROOT / 'config' / 'full-view.yaml')
@@ -76,8 +77,10 @@ def initNet_data(dataset, n_views, network, train=True):
             img = ctlib.fbp(output / 3.84, ct_cfg)
             img = img.detach().cpu().squeeze().numpy()
             img = img.clip(0,1) * mask
+            sinogram = output.squeeze().detach().cpu().numpy()
             
-            scio.savemat(save_dir / file_name[0], {'data': img})
+            scio.savemat(img_save_dir / file_name[0], {'data': img})
+            scio.savemat(sin_save_dir / file_name[0], {'data': sinogram})
             
             img_label = ctlib.fbp(label / 3.84, ct_cfg_full)
             img_label = img_label.squeeze().cpu().numpy()
