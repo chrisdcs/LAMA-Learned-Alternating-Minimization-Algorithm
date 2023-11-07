@@ -1,4 +1,3 @@
-
 import os
 import torch
 import ctlib
@@ -83,15 +82,14 @@ def down_sample(dataset, n_views, fullview_dir, train=True):
     sample = scio.loadmat(F_list[0])['data']
     full_view = sample.shape[0]
     n_partition = full_view // n_views
+    mode = 'train' if train else 'test'
     
     # generate save path
     save_dir = data_dir / f'{n_views}views'
-    if not os.path.exists(save_dir):
-        save_dir.mkdir()
-    else:
-        #print(f'{n_views} views data for {dataset} already exists!')
-        LOGGER.info(f'{n_views} views data for {dataset} already exists!\n')
+    if save_dir.exists():
+        LOGGER.info(f'Downsample ({dataset}, {mode}) to {n_views} views already exists!')
         return
+    save_dir.mkdir(parents=True)
     
     for file in F_list:
         data = scio.loadmat(file)['data']
@@ -99,9 +97,8 @@ def down_sample(dataset, n_views, fullview_dir, train=True):
         for j in range(n_views):
             sparse_data[j,:] = data[j * n_partition, :]
         scio.savemat(save_dir / file.name, {'data': sparse_data})
-    mode = 'train' if train else 'test'
     # print(f'Downsample ({dataset}, {mode}) to {n_views} views finished!')
-    LOGGER.info(f'Downsample ({dataset}, {mode}) to {n_views} views finished!\n')
+    LOGGER.info(f'Downsample ({dataset}, {mode}) to {n_views} views finished!')
     
 def fbp_data(dataset, n_views, train=True):
     """
@@ -123,15 +120,15 @@ def fbp_data(dataset, n_views, train=True):
     else:
         data_dir = ROOT / 'dataset' / dataset / 'test'
     F_list = sorted(list((data_dir / f'{n_views}views').glob('data*.mat')))
+    mode = 'train' if train else 'test'
     
     # generate save path
     save_path = data_dir / f'FBP{n_views}views'
-    if not os.path.exists(save_path):
-        save_path.mkdir()
-    else:
-        # print(f'FBP {n_views} views data for {dataset} already exists!')
-        LOGGER.info(f'FBP {n_views} views data for {dataset} already exists!\n')
+    if save_path.exists():
+        LOGGER.info(f'FBP on sinogram ({dataset}, {mode}) {n_views} views already exists!')
         return
+    save_path.mkdir(parents=True)
+
     cfg_file = ROOT / 'config' / f'{n_views}views.yaml'
     ct_cfg = load_CT_config(cfg_file)
     mask = generate_mask()
@@ -145,6 +142,5 @@ def fbp_data(dataset, n_views, train=True):
         recon_data = recon_data.clip(0,1)
         scio.savemat(save_path / file.name, {'data': recon_data})
     
-    mode = 'train' if train else 'test'
     # print(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!')
-    LOGGER.info(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!\n')
+    LOGGER.info(f'FBP on sinogram ({dataset}, {mode}) {n_views} views finished!')
