@@ -29,11 +29,12 @@ views = [64, 128]
 def parse_opt():
     parser = argparse.ArgumentParser(description='Init-Net')
     parser.add_argument('--dataset', type=str, default='mayo', help='name of dataset')
-    parser.add_argument('--train', type=bool, default=True, help='training data or test data')
+    parser.add_argument('--train', type=str, default='True', help='training data or test data')
     parser.add_argument('--n_views', type=int, default=64, help='number of views for sparse-view CT')
     parser.add_argument('--network', type=str, default='CNN', help='initialization network name')
     
     opt = parser.parse_args()
+    opt.train = True if opt.train.upper() == 'TRUE' else False
     print_args(vars(opt))
     return opt
 
@@ -51,8 +52,8 @@ def initNet_data(dataset, n_views, network, train=True):
     weights = ROOT / 'models' / 'initNet' / f'{dataset}{n_views}-{network}.pkl'
     model.load_state_dict(torch.load(weights))
     mode = 'train' if train else 'test'
-    img_save_dir = ROOT / 'dataset' / dataset / mode / f'FBP_{network}_{n_views}views'
-    sin_save_dir = ROOT / 'dataset' / dataset / mode / f'{network}_{n_views}views'
+    img_save_dir = ROOT / 'dataset' / dataset / mode / f'Img_{network}_{n_views}views'
+    sin_save_dir = ROOT / 'dataset' / dataset / mode / f'Sin_{network}_{n_views}views'
     if img_save_dir.exists() and sin_save_dir.exists():
         LOGGER.info(f"Init-Net data generation ({dataset} {mode} {n_views}views {network}) already exists!")
         LOGGER.info(f"Init-Net data generation ({dataset} {mode} {n_views}views {network}) complete!\n")
