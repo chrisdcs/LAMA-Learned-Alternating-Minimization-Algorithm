@@ -123,7 +123,7 @@ def fbp_data(dataset, n_views, train=True):
     mode = 'train' if train else 'test'
     
     # generate save path
-    save_path = data_dir / f'FBP{n_views}views'
+    save_path = data_dir / f'FBP_{n_views}views'
     if save_path.exists():
         LOGGER.info(f'FBP on sinogram ({dataset}, {mode}) {n_views} views already exists!')
         return
