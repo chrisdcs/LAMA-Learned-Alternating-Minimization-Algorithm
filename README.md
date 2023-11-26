@@ -15,7 +15,7 @@ opencv-python==4.8.0
 Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
 
 ## Dataset
-The two dataset used for experiments in the paper are provided in this [OneDrive](https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0). To download this for Linux, you can use the following commands:
+The two dataset used for experiments in the paper are provided in this [OneDrive](https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0). To download this for Linux, you can use the following commands inside the ```LAMA-Learned-Alternating-Minimization-Algorithm/``` directory:
 ```
 wget -O dataset.zip "https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0&download=1"
 ```
