@@ -36,11 +36,15 @@ class pipeline:
         self.model = nn.DataParallel(self.model)
         self.initialize_weights()
         self.model.to(device)
+        
+        # image net and sinogram net needs to be trained separately
         self.optim = torch.optim.Adam([
                                     {'params':self.model.module.ImgNet.parameters(), 'lr': self.args['lr_I']},
                                     {'params':self.model.module.SNet.parameters(), 'lr': self.args['lr_S']},
                                     {'params':[param for param in self.model.module.hyper_params], 'lr': self.args['lr_p']}
                                     ])
+        
+        # scheduler to reduce learning rate
         self.sched = torch.optim.lr_scheduler.StepLR(self.optim, step_size=1, gamma=self.args['decay_rate'])
         self.avg_loss = {'s-loss': 0, 'i-loss': 0, 't-loss': 0}
         mask = CT.generate_mask()
@@ -60,9 +64,6 @@ class pipeline:
         self.train_data = DataLoader(dataset=LAMA_loader(ROOT / 'dataset' / self.args['dataset'], 
                                                          self.args['img_dir'], self.args['prj_dir'], train=True), 
                                     batch_size=self.args['batch_size'], num_workers=self.args['n_cpu'], shuffle=True)
-        self.test_data = DataLoader(dataset=LAMA_loader(ROOT / 'dataset' / self.args['dataset'], 
-                                                        self.args['img_dir'], self.args['prj_dir'], train=False), 
-                                    batch_size=1, num_workers=self.args['n_cpu'], shuffle=False)
         
     def initialize_weights(self):
         for module in self.model.modules():
@@ -98,14 +99,16 @@ class pipeline:
     def train(self):
         if self.is_continue:
             self.load_checkpoint()
-        # increment 2 phases (iterations) every time
+        
         for itr in range(self.start_iter, self.args['n_iter']+1, 2):
+            # increment 2 phases (iterations) every time
             self.model.module.set_iteration(itr)
             self.start_iter=itr
             n_ep = self.args['n_epoch_warmup'] if self.start_iter==self.args['start_iter'] else self.args['n_epoch']
             for ep in range(self.start_epoch+1, n_ep+1):
                 progress = 0
                 i_loss_list,s_loss_list,loss_list,psnr_list,ssim_list = [],[],[],[],[]
+                
                 for _, data in enumerate(self.train_data):
                     x, x_label, z = data
                     progress += 1
@@ -120,7 +123,7 @@ class pipeline:
                     z_out = z_list[-1].clip(0)
                     z_label = projection.apply(x_label, self.model.module.options_sparse_view)
 
-                    # compute loss
+                    # compute loss: sum of squared loss and ssim loss
                     i_loss = torch.sum(torch.pow(x_out-x_label,2))
                     s_loss = torch.sum(torch.pow(z_out-z_label,2))
                     ssim_loss = 1-ssim(x_out,x_label,data_range=1)
@@ -166,6 +169,7 @@ class pipeline:
                 for loss_idx, loss_key in enumerate(self.avg_loss):
                     if self.steps >= 1:
                         if losses[loss_idx] > 2 * (self.avg_loss[loss_key] / (1-0.9**(self.steps+1))):
+                            # detect instability in backpropagation and reduce learning rate
                             self.is_continue = True
                             self.is_scheduler = True
                             print('reduce lr and continue...')

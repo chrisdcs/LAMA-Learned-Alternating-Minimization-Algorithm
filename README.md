@@ -46,7 +46,7 @@ There are more hyperparameters that you can set for training. Please refer to th
 ```
 python process-data.py --dataset=NBIA --n_views=128 --network=CNN --train=True
 ```
-So far we only support CNN as the initialization network, LAMA baseline as the main backbone. We will add more initialization networks and backbones in the future.
+So far we only support CNN as the initialization network, LAMA baseline as the main backbone. We will add more initialization networks and backbones in the future. More specifically, you can train LAMA without using any initializaton network by setting ```--img_dir FBP_64views``` and ```--prj_dir 64views```.
 
 ## Testing
 Similarly, process data first by running the following command as an example:

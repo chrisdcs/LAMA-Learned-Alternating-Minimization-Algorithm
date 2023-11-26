@@ -163,12 +163,6 @@ class Learnable_Block(torch.nn.Module):
     def __init__(self, cfg):
         super(Learnable_Block, self).__init__()
         
-        # n_feats = kwargs['n_feats']
-        #n_convs = kwargs['n_convs']
-        #k_size = kwargs['k_size']
-        #padding = kwargs['padding']
-        #self.padding = padding
-        
         self.soft_thr = nn.Parameter(torch.Tensor([0.002]),requires_grad=True)
         self.paddings = []
         self.strides = []
@@ -185,8 +179,6 @@ class Learnable_Block(torch.nn.Module):
             convs.append(f(in_c, out_c, kernel_size, stride, padding))
             self.paddings.append(padding)
             self.strides.append(stride)
-        #convs = [nn.Conv2d(1, n_feats, kernel_size=k_size, padding=padding)] + \
-        #        [nn.Conv2d(n_feats, n_feats, kernel_size=k_size, padding=padding) for i in range(n_convs-1)]
         self.convs = nn.ModuleList(convs)
         
         self.act = sigma_activation(0.001)
@@ -245,19 +237,9 @@ class LAMA(torch.nn.Module):
         n_views = kwargs['n_views']
         # model type
         model_type = kwargs['type']
-        # I: image net, S: sinogram net, feats: number of features, convs: number of convolutions (layers)
-        # n_Ifeats = kwargs['n_Ifeats']
-        #n_Sfeats = kwargs['n_Sfeats']
-        #n_Iconvs = kwargs['n_Iconvs']
-        #n_Sconvs = kwargs['n_Sconvs']
-        #Iksize = kwargs['Iksize']
-        #Sksize = kwargs['Sksize']
-        #Ipadding = kwargs['Ipadding']
-        #Spadding = kwargs['Spadding']
         
         # load model configuration
         cfg_file = ROOT / 'models' / f'{model_type}-LAMA.yaml'
-        # print(cfg_file)
         cfg = CT.load_LAMA_config(cfg_file)
         logger.info(f'Loading model configuration from {cfg_file}')
         alpha, beta, mu, nu, lam = cfg['alpha'], cfg['beta'], cfg['mu'], cfg['nu'], cfg['lam']
@@ -265,14 +247,8 @@ class LAMA(torch.nn.Module):
         img_backbone = cfg['img_backbone']
         sinogram_backbone = cfg['sinogram_backbone']
         
-        # LAMA learnable parameters initialization
-        # alpha = 1e-12
-        # beta = 1e-12
-        # mu = 1e-12
-        # nu = 1e-12
-        # eta = 1e-12
-        # lam = kwargs['lam']
-        
+        self.ImgNet = Learnable_Block(cfg=img_backbone)
+        self.SNet = Learnable_Block(cfg=sinogram_backbone)
         
         self.sigma = 10**4
         self.cur_iter = cur_iter
@@ -283,24 +259,6 @@ class LAMA(torch.nn.Module):
         self.nus = nn.Parameter(torch.tensor([nu] * n_iter), requires_grad=True)
         self.hyper_params = nn.ParameterList([self.lam, self.alphas, self.betas, self.mus, self.nus])
         self.options_sparse_view = nn.Parameter(CT.load_CT_config(ROOT / 'config' / '512views.yaml'), requires_grad=False)
-        
-        self.ImgNet = Learnable_Block(cfg=img_backbone)
-        self.SNet = Learnable_Block(cfg=sinogram_backbone)
-        
-        '''
-        self.ImgNet = Learnable_Block(
-            n_feats=n_Ifeats, 
-            n_convs=n_Iconvs,
-            k_size=Iksize,
-            padding=Ipadding)
-        self.SNet = Learnable_Block(
-            n_feats=n_Sfeats, 
-            n_convs=n_Sconvs,
-            k_size=Sksize,
-            padding=Spadding)
-            '''
-            
-        # self.ImgNet = Learnable_Block(
         
         # Down-sample matrix D
         self.index = nn.Parameter(torch.tensor([i*(512//n_views) for i in range(n_views)],dtype=torch.int32),
