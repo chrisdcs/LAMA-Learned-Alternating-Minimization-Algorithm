@@ -6,13 +6,15 @@ Here is the link for the [paper](https://arxiv.org/pdf/2306.02644.pdf)
 
 ## Dependencies
 ```
-pytorch==1.10
+pytorch==1.10.0
 scipy==1.11.1
 numpy==1.25.2
 scikit-image==0.19.3
 opencv-python==4.8.0
+pytorch_msssim==1.0.0
 ```
 Computational Tomography Library: [CTLIB](https://github.com/xwj01/CTLIB)
+Pytorch version from 1.10 to 1.13 are all tested and okay to use. But PyTorch 2.0 and above are not working with the CTLIB library.
 
 ## Dataset
 The two dataset used for experiments in the paper are provided in this [OneDrive](https://uflorida-my.sharepoint.com/:u:/g/personal/ding_chi_ufl_edu/ETaqu5-bebZOjr0Bws3VxU4BkOVqJcwK_M0AvvcCzsqfgQ?e=umy9G0). To download this for Linux, you can use the following commands inside the ```LAMA-Learned-Alternating-Minimization-Algorithm/``` directory:
