@@ -44,7 +44,7 @@ python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
 ```
 The training data will be saved in the directory ```dataset/mayo/train/``` for the example. Then you can use the following command to train the network:
 ```
-python demo-train.py --dataset=mayo --n_views=64 --network=CNN --train=True
+python demo-train.py --dataset=mayo --n_views=64
 ```
 There are more hyperparameters that you can set for training. Please refer to the ```demo-train.py``` for more details. But if you change the dataset, number of views, or the type of initialization network, etc. you need to process the data again by changing the corresponding parameters. For example, if you want to train the network on the NBIA dataset with 128 views and the initialization network is a simple CNN, you can use the following command:
 ```
