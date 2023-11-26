@@ -30,10 +30,33 @@ python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
 ```
 This will generate the following for the ```mayo clinic dataset```: 64-view sinogram, FBP images, and the initialized sinogram and images after a simple CNN initialization network as the training data for LAMA. The data will be saved in separate folders in the directory ```dataset/mayo/train/``` for the example.
 
-## Training (Cleaning up Code & Coming soon)
+## CTLIB
+```CTLIB-demo.ipynb``` is a demo to help the readers to familiarize the usage of the CTLIB, and the application of low-dose CT.
 
-## Demo (Cleaning up Code & Coming soon)
-```CTLIB-demo.ipynb``` is ready for using. This demo is written to help the readers to familiarize the usage of the CTLIB.
+## Training
+Before training, you need to process the data first by running the following command as an example:
+```
+python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
+```
+The training data will be saved in the directory ```dataset/mayo/train/``` for the example. Then you can use the following command to train the network:
+```
+python demo-train.py --dataset=mayo --n_views=64 --network=CNN --train=True
+```
+There are more hyperparameters that you can set for training. Please refer to the ```demo-train.py``` for more details. But if you change the dataset, number of views, or the type of initialization network, etc. you need to process the data again by changing the corresponding parameters. For example, if you want to train the network on the NBIA dataset with 128 views and the initialization network is a simple CNN, you can use the following command:
+```
+python process-data.py --dataset=NBIA --n_views=128 --network=CNN --train=True
+```
+So far we only support CNN as the initialization network, LAMA baseline as the main backbone. We will add more initialization networks and backbones in the future.
+
+## Testing
+Similarly, process data first by running the following command as an example:
+```
+python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=False
+```
+Then you can use the following command to test the network:
+```
+python demo-test.py --dataset=mayo --n_views=64
+```
 
 ## Model
 LAMA in one iteration:
