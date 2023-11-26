@@ -208,12 +208,12 @@ def parse_opt():
     parser.add_argument('--device', type=str, default='cuda', help='device')
     
     parser.add_argument('--n_iter', type=int, default=15, help='number of iterations')
+    parser.add_argument('--start_iter', type=int, default=3, help='start iteration')
     parser.add_argument('--n_epoch_warmup', type=int, default=300, help='number of epoch for warmup')
     parser.add_argument('--n_epoch', type=int, default=200, help='number of epochs for training after warmup')
     parser.add_argument('--is_continue', type=bool, default=False, help='continue training')
     parser.add_argument('--is_scheduler', type=bool, default=False, help='use scheduler')
     parser.add_argument('--decay_rate', type=float, default=0.9, help='decay rate')
-    parser.add_argument('--start_iter', type=int, default=3, help='start iteration')
     parser.add_argument('--lr_I', type=float, default=1e-4, help='learning rate for ImgNet')
     parser.add_argument('--lr_S', type=float, default=6e-5, help='learning rate for SNet')
     parser.add_argument('--lr_p', type=float, default=1e-4, help='hyper parameters learning rate')
