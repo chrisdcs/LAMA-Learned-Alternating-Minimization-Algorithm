@@ -214,8 +214,8 @@ def parse_opt():
     parser.add_argument('--is_scheduler', type=bool, default=False, help='use scheduler')
     parser.add_argument('--decay_rate', type=float, default=0.9, help='decay rate')
     parser.add_argument('--start_iter', type=int, default=3, help='start iteration')
-    parser.add_argument('--lr_I', type=float, default=1e-3, help='learning rate for ImgNet')
-    parser.add_argument('--lr_S', type=float, default=1e-3, help='learning rate for SNet')
+    parser.add_argument('--lr_I', type=float, default=1e-4, help='learning rate for ImgNet')
+    parser.add_argument('--lr_S', type=float, default=6e-5, help='learning rate for SNet')
     parser.add_argument('--lr_p', type=float, default=1e-4, help='hyper parameters learning rate')
     
     
