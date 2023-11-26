@@ -31,7 +31,7 @@ python process-data.py --dataset=mayo --n_views=64 --network=CNN --train=True
 This will generate the following for the ```mayo clinic dataset```: 64-view sinogram, FBP images, and the initialized sinogram and images after a simple CNN initialization network as the training data for LAMA. The data will be saved in separate folders in the directory ```dataset/mayo/train/``` for the example.
 
 ## CTLIB
-```CTLIB-demo.ipynb``` is a demo to help the readers to familiarize the usage of the CTLIB, and the application of low-dose CT.
+```CTLIB-demo.ipynb``` is a demo to help the readers to familiarize the usage of the CTLIB, and the application of sparse-view CT.
 
 ## Training
 Before training, you need to process the data first by running the following command as an example:
