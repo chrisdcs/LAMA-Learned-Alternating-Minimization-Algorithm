@@ -23,7 +23,7 @@ def load_CT_config(config_file):
     return options
 
 def load_LAMA_config(config_file):
-    if isinstance(config_file, str):
+    if isinstance(config_file, str) or isinstance(config_file, Path):
         with open(config_file, errors='ignore') as f:
             hyp = yaml.safe_load(f)
     return hyp

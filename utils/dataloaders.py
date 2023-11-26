@@ -62,7 +62,7 @@ class Phi_loader(Dataset):
                 f_i[j,:] = data[i + j*self.n_partition, :]
             data_list.append(torch.FloatTensor(f_i).unsqueeze_(0))
         
-        img_file = file.replace(self.file_path, 'label_single')
+        img_file = file.replace(self.file_path, 'FullViewNoiseless')
         data = torch.FloatTensor(data).unsqueeze_(0)
         img = scio.loadmat(img_file)['data']
         img = torch.FloatTensor(img).unsqueeze_(0)
@@ -76,7 +76,7 @@ class Phi_loader(Dataset):
 # Data Loader for LAMA
 class LAMA_loader(Dataset):
     # need projection data, ground truth and input images
-    def __init__(self, root, file_path, prj_file_path, n_views, train):
+    def __init__(self, root, file_path, prj_file_path, train):
         self.train = train
         if train == True:
             folder = 'train'
@@ -85,7 +85,6 @@ class LAMA_loader(Dataset):
         
         self.file_path = file_path
         self.prj_file_path = prj_file_path
-        self.n_views = n_views
         self.F_list = sorted(glob.glob(os.path.join(root, folder, self.file_path, 'data')+'*.mat'))
         
         
@@ -93,15 +92,15 @@ class LAMA_loader(Dataset):
     def __getitem__(self, index):
         file = self.F_list[index]
         file_prj = file.replace(self.file_path, self.prj_file_path)
-        file_label = file.replace(self.file_path, 'label_single')
+        file_label = file.replace(self.file_path, 'ground_truth')
         
         input_data = scio.loadmat(file)['data']
-        prj_data = scio.loadmat(file_prj)['data'] / 3.84
         label_data = scio.loadmat(file_label)['data']
+        prj_data = scio.loadmat(file_prj)['data'] / 3.84
         
         input_data = torch.FloatTensor(input_data).unsqueeze_(0)
-        prj_data = torch.FloatTensor(prj_data).unsqueeze_(0)
         label_data = torch.FloatTensor(label_data).unsqueeze_(0)
+        prj_data = torch.FloatTensor(prj_data).unsqueeze_(0)
         
         if prj_data.shape[1] < 512:
             prj_data = resize(prj_data, [512,512])

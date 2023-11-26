@@ -2,17 +2,6 @@
 
 # train algorithm for 15 iterations (phases)
 n_iter: 15
-start_iter: 15
-
-# number of epochs per phase [warm up epochs, main epochs]
-epochs: [300, 200]
-
-# number of sparse views
-n_views: 64
-# dataset name
-data: mayo
-# type of initialization
-init: vanillaCNN
 
 # hyper-parameters
 alpha: 1.e-12 
@@ -20,22 +9,21 @@ beta: 1.e-12
 mu: 1.e-12
 nu: 1.e-12
 lam: 10.0
-eta: 1.e-10
 
-# CT config file name
-CT_config: models/64views.yaml
-
-backbone:
-[
-  # I: image network, S: sinogram network, Conv: convolutional layer
+img_backbone:
+  # I: image networks, Conv2D: convolutional layer
   # [in_channels, out_channels, kernel_size, stride, padding]
-  [I, Conv, [1, 32, 3, 1, 1]],
-  [I, Conv, [1, 32, 3, 1, 1]],
-  [I, Conv, [1, 32, 3, 1, 1]],
-  [I, Conv, [1, 32, 3, 1, 1]],
-
-  [S, Conv, [1, 32, (3,15), (1,7), 1]],
-  [S, Conv, [1, 32, (3,15), (1,7), 1]],
-  [S, Conv, [1, 32, (3,15), (1,7), 1]],
-  [S, Conv, [1, 32, (3,15), (1,7), 1]],
+ [[I, Conv2D, [1,  32, 3, 1, 1]],
+  [I, Conv2D, [32, 32, 3, 1, 1]],
+  [I, Conv2D, [32, 32, 3, 1, 1]],
+  [I, Conv2D, [32, 32, 3, 1, 1]],
 ]
+
+sinogram_backbone:
+  # S: sinogram networks, Conv2D: convolutional layer
+  # [in_channels, out_channels, kernel_size, stride, padding]
+ [[S, Conv2D, [1,  32, '(3,15)', 1, '(1,7)']],
+  [S, Conv2D, [32, 32, '(3,15)', 1, '(1,7)']],
+  [S, Conv2D, [32, 32, '(3,15)', 1, '(1,7)']],
+  [S, Conv2D, [32, 32, '(3,15)', 1, '(1,7)']],
+ ]

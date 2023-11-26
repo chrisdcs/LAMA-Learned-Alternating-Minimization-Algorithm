@@ -4,26 +4,15 @@ from torch.nn import init
 import torch.nn.functional as F
 from torch.autograd import Function
 
-import numpy as np
+import os
 import ctlib
+import numpy as np
+from pathlib import Path
+import utils.CT_helper as CT
+from utils.general import LOGGER as logger
 
-# Helper Functions
-def generate_mask(dImg, dDet):
-    imgN = 256
-    m = np.arange(-imgN/2+1/2,imgN/2-1/2+1,1)
-    m = m**2
-    mask = np.zeros((imgN,imgN))
-    for i in range(imgN):
-        mask[:,i] = np.sqrt(m + m[i]) * dImg
-    
-    detL = dDet * 512
-    dedge = detL / 2 -dDet / 2
-    scanR = 500 / 100 / 2
-    detR = 500 / 100 / 2
-    dd = dedge * scanR / np.sqrt(dedge**2 + (scanR+detR)**2)
-    
-    return mask <= dd
-
+ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.path.relpath(ROOT, Path.cwd())) # relative path to current working directory
 
 # Init-Net Blocks
 class Block(nn.Module):
@@ -171,18 +160,33 @@ class sigma_derivative(nn.Module):
 
 # Exact Learnable Block
 class Learnable_Block(torch.nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self, cfg):
         super(Learnable_Block, self).__init__()
         
-        n_feats = kwargs['n_feats']
-        n_convs = kwargs['n_convs']
-        k_size = kwargs['k_size']
-        padding = kwargs['padding']
-        self.padding = padding
+        # n_feats = kwargs['n_feats']
+        #n_convs = kwargs['n_convs']
+        #k_size = kwargs['k_size']
+        #padding = kwargs['padding']
+        #self.padding = padding
         
         self.soft_thr = nn.Parameter(torch.Tensor([0.002]),requires_grad=True)
-        convs = [nn.Conv2d(1, n_feats, kernel_size=k_size, padding=padding)] + \
-                [nn.Conv2d(n_feats, n_feats, kernel_size=k_size, padding=padding) for i in range(n_convs-1)]
+        self.paddings = []
+        self.strides = []
+        convs = []
+        for modality, operator, param in cfg:
+            in_c, out_c, kernel_size, stride, padding = param
+            if operator == 'Conv2D':
+                f = nn.Conv2d
+            if not isinstance(kernel_size, int):
+                kernel_size = kernel_size[1:-1].split(',')
+                kernel_size = (int(kernel_size[0]), int(kernel_size[1]))
+                padding = padding[1:-1].split(',')
+                padding = (int(padding[0]), int(padding[1]))
+            convs.append(f(in_c, out_c, kernel_size, stride, padding))
+            self.paddings.append(padding)
+            self.strides.append(stride)
+        #convs = [nn.Conv2d(1, n_feats, kernel_size=k_size, padding=padding)] + \
+        #        [nn.Conv2d(n_feats, n_feats, kernel_size=k_size, padding=padding) for i in range(n_convs-1)]
         self.convs = nn.ModuleList(convs)
         
         self.act = sigma_activation(0.001)
@@ -198,8 +202,9 @@ class Learnable_Block(torch.nn.Module):
         out = torch.div(g, denominator)
 
         for i in range(len(forward_cache)-1, 0, -1):
-            out = F.conv_transpose2d(out, self.convs[i].weight, padding=self.padding) * self.act_der(forward_cache[i-1])
-        out = F.conv_transpose2d(out, self.convs[0].weight, padding=self.padding)
+            out = F.conv_transpose2d(out, self.convs[i].weight, stride=self.strides[i], padding=self.paddings[i]) * \
+                self.act_der(forward_cache[i-1])
+        out = F.conv_transpose2d(out, self.convs[0].weight, stride=self.strides[i], padding=self.paddings[i])
         return out
     
     def smoothed_reg(self, forward_cache, gamma):
@@ -238,45 +243,37 @@ class LAMA(torch.nn.Module):
         cur_iter = kwargs['start_iter']
         # number of sparse views
         n_views = kwargs['n_views']
-        
+        # model type
+        model_type = kwargs['type']
         # I: image net, S: sinogram net, feats: number of features, convs: number of convolutions (layers)
-        n_Ifeats = kwargs['n_Ifeats']
-        n_Sfeats = kwargs['n_Sfeats']
-        n_Iconvs = kwargs['n_Iconvs']
-        n_Sconvs = kwargs['n_Sconvs']
-        Iksize = kwargs['Iksize']
-        Sksize = kwargs['Sksize']
-        Ipadding = kwargs['Ipadding']
-        Spadding = kwargs['Spadding']
+        # n_Ifeats = kwargs['n_Ifeats']
+        #n_Sfeats = kwargs['n_Sfeats']
+        #n_Iconvs = kwargs['n_Iconvs']
+        #n_Sconvs = kwargs['n_Sconvs']
+        #Iksize = kwargs['Iksize']
+        #Sksize = kwargs['Sksize']
+        #Ipadding = kwargs['Ipadding']
+        #Spadding = kwargs['Spadding']
         
-        # Radon Transform paramters
-        views = kwargs['views']
-        dets = kwargs['dets']
-        width = kwargs['width']
-        height = kwargs['height']
-        dImg = kwargs['dImg']
-        dDet = kwargs['dDet']
-        Ang0 = kwargs['Ang0']
-        dAng = kwargs['dAng']
-        s2r = kwargs['s2r']
-        d2r = kwargs['d2r']
-        binshift = kwargs['binshift']
-        scan_type = kwargs['scan_type']
+        # load model configuration
+        cfg_file = ROOT / 'models' / f'{model_type}-LAMA.yaml'
+        # print(cfg_file)
+        cfg = CT.load_LAMA_config(cfg_file)
+        logger.info(f'Loading model configuration from {cfg_file}')
+        alpha, beta, mu, nu, lam = cfg['alpha'], cfg['beta'], cfg['mu'], cfg['nu'], cfg['lam']
         
-        # options = torch.tensor([512, 512, 256, 256, 0.006641, 0.0072, 0, 0.006134 * 2, 2.5, 2.5, 0, 0])
-        options = torch.tensor([views, dets, width, height, dImg, dDet, Ang0, dAng, s2r, d2r, binshift, scan_type])
-        self.options_sparse_view = nn.Parameter(options, requires_grad=False)
+        img_backbone = cfg['img_backbone']
+        sinogram_backbone = cfg['sinogram_backbone']
+        
+        # LAMA learnable parameters initialization
+        # alpha = 1e-12
+        # beta = 1e-12
+        # mu = 1e-12
+        # nu = 1e-12
+        # eta = 1e-12
+        # lam = kwargs['lam']
         
         
-        # LAMA parameters
-        alpha = kwargs['alpha']
-        beta = kwargs['beta']
-        mu = kwargs['mu']
-        nu = kwargs['nu']
-        lam = kwargs['lam']
-        eta = kwargs['eta']
-        
-        self.eta = eta
         self.sigma = 10**4
         self.cur_iter = cur_iter
         self.lam = nn.Parameter(torch.tensor(lam), requires_grad=True)
@@ -285,7 +282,12 @@ class LAMA(torch.nn.Module):
         self.mus = nn.Parameter(torch.tensor([mu] * n_iter), requires_grad=True)
         self.nus = nn.Parameter(torch.tensor([nu] * n_iter), requires_grad=True)
         self.hyper_params = nn.ParameterList([self.lam, self.alphas, self.betas, self.mus, self.nus])
+        self.options_sparse_view = nn.Parameter(CT.load_CT_config(ROOT / 'config' / '512views.yaml'), requires_grad=False)
         
+        self.ImgNet = Learnable_Block(cfg=img_backbone)
+        self.SNet = Learnable_Block(cfg=sinogram_backbone)
+        
+        '''
         self.ImgNet = Learnable_Block(
             n_feats=n_Ifeats, 
             n_convs=n_Iconvs,
@@ -296,6 +298,9 @@ class LAMA(torch.nn.Module):
             n_convs=n_Sconvs,
             k_size=Sksize,
             padding=Spadding)
+            '''
+            
+        # self.ImgNet = Learnable_Block(
         
         # Down-sample matrix D
         self.index = nn.Parameter(torch.tensor([i*(512//n_views) for i in range(n_views)],dtype=torch.int32),
@@ -370,7 +375,6 @@ class LAMA(torch.nn.Module):
         mu = torch.abs(self.mus[phase])
         nu = torch.abs(self.nus[phase])
         lam = self.lam
-        eta = self.eta
         
         # update z
         Ax = projection.apply(x, self.options_sparse_view)

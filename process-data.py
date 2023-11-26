@@ -38,6 +38,29 @@ def parse_opt():
     print_args(vars(opt))
     return opt
 
+def generate_img_ground_truth(dataset, train=True):
+    # LOGGER.info("Ground truth data generation start!")
+    mode = 'train' if train else 'test'
+    groudn_truth_dir = ROOT / 'dataset' / dataset / mode / 'ground_truth'
+    if groudn_truth_dir.exists():
+        LOGGER.info(f"Ground truth data ({dataset} {mode}) already exists!")
+        LOGGER.info(f"Ground truth data generation ({dataset} {mode}) complete!\n")
+        return
+    LOGGER.info(f"Ground truth data generation ({dataset} {mode}) start!")
+    groudn_truth_dir.mkdir(parents=True)
+    ct_cfg = CT.load_CT_config(ROOT / 'config' / 'full-view.yaml')
+    data_dir = ROOT / 'dataset' / dataset / mode / 'FullViewNoiseless'
+    F_list = sorted(list(data_dir.glob('data*.mat')))
+    mask = CT.generate_mask()
+    for file in F_list:
+        data = scio.loadmat(file)['data']
+        data = torch.FloatTensor(data.reshape(1,1,1024,512)).cuda().contiguous()
+        img = ctlib.fbp(data / 3.84, ct_cfg).clamp(0,1)
+        img = img.squeeze().detach().cpu().numpy() * mask
+        scio.savemat(groudn_truth_dir / file.name, {'data': img})
+        
+    LOGGER.info(f"Ground truth data generation ({dataset} {mode}) complete!\n")
+
 def generate_sparse_CT(dataset, n_views, train=True):
     LOGGER.info("Sparse-View CT data generation start!")
     CT.down_sample(dataset, n_views, 'FullViewNoiseless', train=train)
@@ -103,6 +126,7 @@ def run(**kwargs):
     train = kwargs['train']
     network = kwargs['network']
     
+    generate_img_ground_truth(dataset, train=train)
     generate_sparse_CT(dataset, n_views, train=train)
     initNet_data(dataset, n_views, network, train=train)
     
