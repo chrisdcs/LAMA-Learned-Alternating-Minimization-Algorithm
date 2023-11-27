@@ -78,9 +78,10 @@ class pipeline:
         if is_best:
             shutil.copyfile(self.save_dir / filename, self.save_dir / 'model_best.pth.tar')
     
-    def load_checkpoint(self, filename='checkpoint.pth.tar'):
-        if (self.save_dir / filename).exists():
-            checkpoint = torch.load(filename, map_location=device)
+    def load_checkpoint(self, filename='model_best.pth.tar'):
+        file_dir = self.save_dir / filename
+        if (file_dir).exists():
+            checkpoint = torch.load(file_dir, map_location=device)
             self.start_iter = checkpoint['iter']
             self.start_epoch = checkpoint['epoch']
             self.best_psnr = checkpoint['best_psnr']
